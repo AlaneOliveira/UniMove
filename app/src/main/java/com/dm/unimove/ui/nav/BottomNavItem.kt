@@ -1,25 +1,16 @@
-package com.dm.unimove.ui.nav;
+package com.dm.unimove.ui.nav
 
-import androidx.compose.material.icons.Icons;
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home;
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.ui.graphics.vector.ImageVector;
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.ui.graphics.vector.ImageVector
 
-import kotlinx.serialization.Serializable;
-
-sealed interface Route {
-    @Serializable
-    data object Home : Route
-
-    @Serializable
-    data object List : Route
-
-    @Serializable
-    data object Map : Route
-}
-sealed class BottomNavItem(val title: String, val icon: ImageVector, val route: Route) {
-    data object HomeButton : BottomNavItem("Início", Icons.Default.Home, Route.Home)
-    data object ListButton : BottomNavItem("Favoritos", Icons.Default.Favorite, Route.List)
-    data object MapButton : BottomNavItem("Mapa", Icons.Default.LocationOn, Route.Map)
+sealed class BottomNavItem(
+    val route: Route,
+    val title: String,
+    val icon: ImageVector
+) {
+    object MapButton : BottomNavItem(Route.Map, "Mapa", Icons.Default.Place)
+    object ListButton : BottomNavItem(Route.List, "Histórico de caronas", Icons.Default.List)
 }

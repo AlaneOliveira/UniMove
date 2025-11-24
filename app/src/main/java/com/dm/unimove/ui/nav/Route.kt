@@ -1,0 +1,11 @@
+package com.dm.unimove.ui.nav
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+sealed class Route {
+    @Serializable
+    object Map : Route()
+    @Serializable
+    object List : Route()
+}

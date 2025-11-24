@@ -6,14 +6,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.dm.unimove.model.MainViewModel
-import com.dm.unimove.ui.HomePage
 import com.dm.unimove.ui.MapPage
 import com.dm.unimove.ui.ListPage
 
 @Composable
 fun MainNavHost(navController: NavHostController, viewModel: MainViewModel, modifier: Modifier = Modifier) {
-    NavHost(navController, startDestination = Route.Home) {
-        composable<Route.Home> { HomePage(viewModel = viewModel) }
+    NavHost(navController, startDestination = Route.Map) {
         composable<Route.List> { ListPage(viewModel = viewModel) }
         composable<Route.Map> { MapPage(viewModel = viewModel) }
     }

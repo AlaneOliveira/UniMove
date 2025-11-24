@@ -1,6 +1,7 @@
 package com.dm.unimove
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -11,11 +12,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
@@ -27,7 +30,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -75,6 +80,7 @@ fun RegisterPage(modifier: Modifier = Modifier) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmpassword by rememberSaveable { mutableStateOf("") }
+    var rememberMe by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val activity: Activity = context as Activity
 
@@ -96,7 +102,7 @@ fun RegisterPage(modifier: Modifier = Modifier) {
                 .fillMaxWidth(0.9f)
                 .fillMaxHeight(0.85f),
             shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier
@@ -112,7 +118,7 @@ fun RegisterPage(modifier: Modifier = Modifier) {
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier
                         .width(300.dp)
                         .padding(vertical = 4.dp),
@@ -156,15 +162,24 @@ fun RegisterPage(modifier: Modifier = Modifier) {
                     value = confirmpassword,
                     label = { Text("Confirmar Senha") },
                     onValueChange = { confirmpassword = it },
+                    visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     leadingIcon = {
                         Icon(
-                            Icons.Default.Email,
+                            Icons.Default.Lock,
                             contentDescription = "IconeCadeado"
                         )
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Row(modifier = Modifier.offset(x = (-8).dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = rememberMe,
+                        onCheckedChange = { rememberMe = it }
+                    )
+                    Text("Lembre-se de mim", style = MaterialTheme.typography.labelMedium)
+                }
 
                 Spacer(modifier = Modifier.height(3.dp))
                 Button(
@@ -178,26 +193,40 @@ fun RegisterPage(modifier: Modifier = Modifier) {
                         Firebase.auth.createUserWithEmailAndPassword(email, password)
                             .addOnCompleteListener(activity) { task ->
                                 if (task.isSuccessful) {
-                                    Toast.makeText(activity,
-                                        "Cadastro feito com sucesso!", Toast.LENGTH_LONG).show()
+                                    val sharedPref = activity.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+                                    if (rememberMe) {
+                                        with(sharedPref.edit()) {
+                                            putBoolean("remember_me", true)
+                                            apply()
+                                        }
+                                    } else {
+                                        with(sharedPref.edit()) {
+                                            putBoolean("remember_me", false)
+                                            apply()
+                                        }
+                                    }
+
+                                    Toast.makeText(activity, "Cadastro feito com sucesso!", Toast.LENGTH_LONG).show()
+                                    val intent =
+                                        Intent(activity, MainActivity::class.java).apply {
+                                            // Limpa a pilha de navegação para que o usuário não volte para a tela de registro
+                                            flags =
+                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                        }
+                                    activity.startActivity(intent)
                                 } else {
-                                    Toast.makeText(activity,
-                                        "Cadastro falhou! ${task.exception?.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(activity, "Cadastro falhou! ${task.exception?.message}", Toast.LENGTH_LONG).show()
                                 }
                             }
                     },
-                    enabled = email.isNotEmpty() && password.isNotEmpty() && name.isNotEmpty(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
+                    enabled = email.isNotEmpty() && password.isNotEmpty() && name.isNotEmpty() && confirmpassword.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
-                ) {
-                    Text("CADASTRE-SE", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                }
+                ) { Text("CADASTRE-SE", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) }
 
                 // Link para Login
                 Column(
@@ -222,40 +251,3 @@ fun RegisterPage(modifier: Modifier = Modifier) {
         }
     }
 }
-/*
-
-
-        Row(modifier = Modifier) {
-            Button( onClick = {
-                Firebase.auth.createUserWithEmailAndPassword(email, password)
-                    .addOnCompleteListener(activity) { task ->
-                        if (task.isSuccessful) {
-                            Toast.makeText(activity,
-                                "Registro OK!", Toast.LENGTH_LONG).show()
-                        } else {
-                            Toast.makeText(activity,
-                                "Registro FALHOU!", Toast.LENGTH_LONG).show()
-                        }
-                    }
-            },
-                enabled = email.isNotEmpty() && password.isNotEmpty() && name.isNotEmpty() && confirmpassword.isNotEmpty() && password == confirmpassword
-            ) {
-                Text("Registrar")
-            }
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            Button(
-                onClick = {
-                    name = ""
-                    email = ""
-                    password = ""
-                    confirmpassword = ""
-                }
-            ) {
-                Text("Limpar")
-            }
-        }
-    }
-}
-*/

@@ -1,6 +1,7 @@
 package com.dm.unimove
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -86,7 +87,7 @@ fun LoginPage(modifier: Modifier = Modifier) {
                 .fillMaxWidth(0.9f)
                 .fillMaxHeight(0.75f),
             shape = MaterialTheme.shapes.extraLarge,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier
@@ -144,7 +145,6 @@ fun LoginPage(modifier: Modifier = Modifier) {
                             onCheckedChange = { rememberMe = it }
                         )
                         Text("Lembre-se de mim", style = MaterialTheme.typography.labelMedium)
-                        /* TODO: Implementar lógica de lembrar usuário */
                     }
                     TextButton(onClick = { /* TODO: Implementar recuperação de senha */ }, modifier = Modifier.offset(x = 8.dp)) {
                         Text("Esqueceu sua senha?", style = MaterialTheme.typography.labelSmall)
@@ -158,23 +158,39 @@ fun LoginPage(modifier: Modifier = Modifier) {
                         Firebase.auth.signInWithEmailAndPassword(email, password)
                             .addOnCompleteListener(activity) { task ->
                                 if (task.isSuccessful) {
+                                    val sharedPref = activity.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+                                    if (rememberMe) {
+                                        with(sharedPref.edit()) {
+                                            putBoolean("remember_me", true)
+                                            apply()
+                                        }
+                                    } else {
+                                        with(sharedPref.edit()) {
+                                            putBoolean("remember_me", false)
+                                            apply()
+                                        }
+                                    }
                                     Toast.makeText(activity, "Login feito com sucesso!", Toast.LENGTH_LONG).show()
+                                    val intent =
+                                        Intent(activity, MainActivity::class.java).apply {
+                                            // Limpa a pilha de navegação para que o usuário não volte para a tela de login
+                                            flags =
+                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                        }
+                                    activity.startActivity(intent)
                                 } else {
                                     Toast.makeText(activity, "Login falhou! ${task.exception?.message}", Toast.LENGTH_LONG).show()
                                 }
                             }
-                    }, enabled = email.isNotEmpty() && password.isNotEmpty(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
+                    },
+                    enabled = email.isNotEmpty() && password.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
-                ) {
-                    Text("LOG IN", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                }
+                ) { Text("LOG IN", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) }
 
                 // Link para Cadastro
                 Column(
