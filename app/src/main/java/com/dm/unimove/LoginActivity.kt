@@ -33,7 +33,10 @@ import androidx.compose.ui.unit.sp
 import com.dm.unimove.ui.theme.UnimoveTheme
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
-
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -46,6 +49,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material3.HorizontalDivider
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,14 +89,15 @@ fun LoginPage(modifier: Modifier = Modifier) {
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .fillMaxHeight(0.75f),
+                .wrapContentHeight(),
             shape = MaterialTheme.shapes.extraLarge,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier
                     .padding(horizontal = 32.dp, vertical = 38.dp)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -104,7 +109,7 @@ fun LoginPage(modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 40.sp
                 )
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier
                         .width(300.dp)
                         .padding(vertical = 4.dp),

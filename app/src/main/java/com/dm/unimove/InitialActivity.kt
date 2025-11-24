@@ -38,8 +38,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import com.dm.unimove.ui.theme.CustomColors
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 
 class InitialActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

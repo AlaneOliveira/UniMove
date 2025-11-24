@@ -1,8 +1,10 @@
 package com.dm.unimove.ui
 
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -10,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.dm.unimove.model.MainViewModel
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -26,6 +30,11 @@ fun MapPage (modifier: Modifier = Modifier, viewModel: MainViewModel) {
     val joaopessoa = LatLng(-7.12, -34.84)
     val camPosState = rememberCameraPositionState ()
     val context = LocalContext.current
+
+    val fusedLocationClient = remember {
+        LocationServices.getFusedLocationProviderClient(context)
+    }
+
     val hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context,
@@ -33,6 +42,19 @@ fun MapPage (modifier: Modifier = Modifier, viewModel: MainViewModel) {
                     PackageManager.PERMISSION_GRANTED
         )
     }
+
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) {
+            @SuppressLint("MissingPermission")
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                location?.let {
+                    val userLocation = LatLng(it.latitude, it.longitude)
+                    camPosState.move(CameraUpdateFactory.newLatLngZoom(userLocation, 15f))
+                }
+            }
+        }
+    }
+
     GoogleMap (modifier = Modifier.fillMaxSize(), onMapClick = {
         viewModel.add("Cidade@${it.latitude}:${it.longitude}", location = it) },
         cameraPositionState = camPosState,
