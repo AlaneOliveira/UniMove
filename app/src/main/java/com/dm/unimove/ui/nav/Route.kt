@@ -7,5 +7,7 @@ sealed class Route {
     @Serializable
     object Map : Route()
     @Serializable
+    object Ride : Route()
+    @Serializable
     object List : Route()
 }

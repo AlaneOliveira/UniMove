@@ -37,8 +37,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dm.unimove.ui.theme.CustomColors
-
+import com.dm.unimove.model.User
 class InitialActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +67,7 @@ class InitialActivity : ComponentActivity() {
 fun WelcomeBackPage(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val activity: Activity = context as Activity
+    val name = viewModel.user?.name?:"[carregando...]"
 
     Box(
         modifier = modifier.fillMaxSize(),
@@ -98,7 +100,7 @@ fun WelcomeBackPage(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Bem vindo\nde volta!",
+                text = "Bem vindo/a,\n$name!",
                 style = MaterialTheme.typography.titleLarge,
                 color = CustomColors.LightBlue,
                 textAlign = TextAlign.Center

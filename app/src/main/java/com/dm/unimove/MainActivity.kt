@@ -124,6 +124,7 @@ class MainActivity : ComponentActivity() {
                     bottomBar = {
                         val items = listOf(
                             BottomNavItem.MapButton,
+                            BottomNavItem.RideButton,
                             BottomNavItem.ListButton
                         )
 
