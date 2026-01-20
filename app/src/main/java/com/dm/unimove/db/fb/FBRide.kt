@@ -1,18 +1,39 @@
 package com.dm.unimove.db.fb
 
+import com.dm.unimove.model.Location
+import com.dm.unimove.model.Ride
+import com.google.firebase.firestore.GeoPoint
+
 class FBRide {
-    var name : String? = null
-    var lat : Double? = null
-    var lng : Double? = null
+    var startingName: String? = null
+    var startingLat: Double? = null
+    var startingLng: Double? = null
+    
+    var destName: String? = null
+    var destLat: Double? = null
+    var destLng: Double? = null
+
     fun toRide(): Ride {
-        val latlng = if (lat!=null&&lng!=null) LatLng(lat!!, lng!!) else null
-        return City(name!!, location = latlng)
+        val startLoc = Location(
+            name = startingName ?: "",
+            coordinates = GeoPoint(startingLat ?: 0.0, startingLng ?: 0.0)
+        )
+        val destLoc = Location(
+            name = destName ?: "",
+            coordinates = GeoPoint(destLat ?: 0.0, destLng ?: 0.0)
+        )
+        return Ride(starting_point = startLoc, destination = destLoc)
     }
 }
-fun Ride.toFBRide() : FBRide {
-    val fbCity = FBCity()
-    fbCity.name = this.name
-    fbCity.lat = this.location?.latitude ?: 0.0
-    fbCity.lng = this.location?.longitude ?: 0.0
-    return fbCity
+
+fun Ride.toFBRide(): FBRide {
+    val fbRide = FBRide()
+    fbRide.startingName = this.starting_point.name
+    fbRide.startingLat = this.starting_point.coordinates.latitude
+    fbRide.startingLng = this.starting_point.coordinates.longitude
+    
+    fbRide.destName = this.destination.name
+    fbRide.destLat = this.destination.coordinates.latitude
+    fbRide.destLng = this.destination.coordinates.longitude
+    return fbRide
 }

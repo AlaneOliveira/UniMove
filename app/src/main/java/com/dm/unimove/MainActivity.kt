@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.text.style.TextAlign
+import com.dm.unimove.ui.nav.Route
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -59,15 +60,6 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
 
             UnimoveTheme {
-                if (showDialog) CityDialog(
-                    onDismiss = { showDialog = false },
-                    onConfirm = { city ->
-                        if (city.isNotBlank()) viewModel.add(city)
-                        showDialog = false
-                    },
-                    onClick = { showDialog = true }
-                )
-
                 Scaffold(
                     // 1. TOP BAR
                     topBar = {
@@ -170,7 +162,12 @@ class MainActivity : ComponentActivity() {
                                     icon = { Icon(Icons.Default.AddRoad, contentDescription = "Criar carona") },
                                     label = { Text(text = "Criar carona") },
                                     selected = false,
-                                    onClick = { scope.launch { drawerState.close() /*TODO*/ } },
+                                    onClick = {
+                                        scope.launch {
+                                            drawerState.close()
+                                            navController.navigate(Route.CreateRide)
+                                        }
+                                    },
                                     colors = itemColors
                                 )
                                 NavigationDrawerItem(

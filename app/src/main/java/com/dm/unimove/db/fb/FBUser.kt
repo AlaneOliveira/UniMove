@@ -3,11 +3,13 @@ package com.dm.unimove.db.fb
 import com.dm.unimove.model.User
 
 class FBUser {
-    var name : String ? = null
-    var email : String? = null
-    fun toUser() = User(name!!, email!!)
+    var name: String? = null
+    var email: String? = null
+
+    fun toUser() = User(name = name ?: "Usuário", email = email ?: "")
 }
-fun User.toFBUser() : FBUser {
+
+fun User.toFBUser(): FBUser {
     val fbUser = FBUser()
     fbUser.name = this.name
     fbUser.email = this.email

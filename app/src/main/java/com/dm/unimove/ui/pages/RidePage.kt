@@ -1,4 +1,4 @@
-package com.dm.unimove.ui
+package com.dm.unimove.ui.pages
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column

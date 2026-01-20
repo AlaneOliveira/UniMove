@@ -1,18 +1,24 @@
 package com.dm.unimove.db.fb
 
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.firestore
+
 class FBDatabase {
     interface Listener {
         fun onUserLoaded(user: FBUser)
         fun onUserSignOut()
-        fun onCityAdded(city: FBRide)
-        fun onCityUpdated(city: FBRide)
-        fun onCityRemoved(city: FBRide)
+        fun onRideAdded(ride: FBRide)
+        fun onRideUpdated(ride: FBRide)
+        fun onRideRemoved(ride: FBRide)
     }
+
     private val auth = Firebase.auth
     private val db = Firebase.firestore
     private var ridesListReg: ListenerRegistration? = null
-    private var listener : Listener? = null
-
+    private var listener: Listener? = null
 
     init {
         auth.addAuthStateListener { auth ->
@@ -22,67 +28,51 @@ class FBDatabase {
                 return@addAuthStateListener
             }
 
-
             val refCurrUser = db.collection("users").document(auth.currentUser!!.uid)
 
-
-            refCurrUser.get().addOnSuccessListener {
-                it.toObject(FBUser::class.java)?.let { user ->
+            refCurrUser.get().addOnSuccessListener { document ->
+                document.toObject(FBUser::class.java)?.let { user ->
                     listener?.onUserLoaded(user)
                 }
             }
-
 
             ridesListReg = refCurrUser.collection("rides")
                 .addSnapshotListener { snapshots, ex ->
                     if (ex != null) return@addSnapshotListener
                     snapshots?.documentChanges?.forEach { change ->
                         val fbRide = change.document.toObject(FBRide::class.java)
-                        if (change.type == DocumentChange.Type.ADDED) {
-                            listener?.onCityAdded(fbRide)
-                        } else if (change.type == DocumentChange.Type.MODIFIED) {
-                            listener?.onCityUpdated(fbRide)
-                        } else if (change.type == DocumentChange.Type.REMOVED) {
-                            listener?.onCityRemoved(fbRide)
+                        if (fbRide != null) {
+                            when (change.type) {
+                                DocumentChange.Type.ADDED -> listener?.onRideAdded(fbRide)
+                                DocumentChange.Type.MODIFIED -> listener?.onRideUpdated(fbRide)
+                                DocumentChange.Type.REMOVED -> listener?.onRideRemoved(fbRide)
+                            }
                         }
                     }
                 }
         }
     }
 
-
     fun setListener(listener: Listener? = null) {
         this.listener = listener
     }
 
-
     fun register(user: FBUser) {
-        if (auth.currentUser == null)
-            throw RuntimeException("User not logged in!")
-        val uid = auth.currentUser!!.uid
-        db.collection("users").document(uid + "").set(user);
+        val uid = auth.currentUser?.uid ?: throw RuntimeException("User not logged in!")
+        db.collection("users").document(uid).set(user)
     }
 
-
-    fun add(city: FBRide) {
-        if (auth.currentUser == null)
-            throw RuntimeException("User not logged in!")
-        if (city.name == null || city.name!!.isEmpty())
-            throw RuntimeException("Ride with null or empty name!")
-        val uid = auth.currentUser!!.uid
+    fun add(ride: FBRide) {
+        val uid = auth.currentUser?.uid ?: throw RuntimeException("User not logged in!")
+        val name = ride.startingName ?: throw RuntimeException("Ride with null or empty name!")
         db.collection("users").document(uid).collection("rides")
-            .document(city.name!!).set(city)
+            .document(name).set(ride)
     }
 
-
-    fun remove(city: FBRide) {
-        if (auth.currentUser == null)
-            throw RuntimeException("User not logged in!")
-        if (city.name == null || city.name!!.isEmpty())
-            throw RuntimeException("City with null or empty name!")
-        val uid = auth.currentUser!!.uid
+    fun remove(ride: FBRide) {
+        val uid = auth.currentUser?.uid ?: throw RuntimeException("User not logged in!")
+        val name = ride.startingName ?: throw RuntimeException("Ride with null or empty name!")
         db.collection("users").document(uid).collection("rides")
-            .document(city.name!!).delete()
+            .document(name).delete()
     }
 }
-

@@ -7,6 +7,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,8 +39,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dm.unimove.model.MainViewModel
 import com.dm.unimove.ui.theme.CustomColors
 import com.dm.unimove.model.User
+import kotlin.getValue
+
 class InitialActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,7 +57,7 @@ class InitialActivity : ComponentActivity() {
                     containerColor = MaterialTheme.colorScheme.background
                 ) { innerPadding ->
                     if (rememberMe) {
-                        WelcomeBackPage(modifier = Modifier.padding(innerPadding))
+                        WelcomeBackPage(viewModel = viewModel(), modifier = Modifier.padding(innerPadding))
                     } else {
                         InitialPage(modifier = Modifier.padding(innerPadding))
                     }
@@ -64,10 +68,10 @@ class InitialActivity : ComponentActivity() {
 }
 
 @Composable
-fun WelcomeBackPage(modifier: Modifier = Modifier) {
+fun WelcomeBackPage(viewModel: MainViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val activity: Activity = context as Activity
-    val name = viewModel.user?.name?:"[carregando...]"
+    val name = viewModel.user.value?.name ?:"[carregando...]"
 
     Box(
         modifier = modifier.fillMaxSize(),

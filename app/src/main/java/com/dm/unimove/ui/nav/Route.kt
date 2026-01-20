@@ -10,4 +10,6 @@ sealed class Route {
     object Ride : Route()
     @Serializable
     object List : Route()
+    @Serializable
+    object CreateRide : Route()
 }
