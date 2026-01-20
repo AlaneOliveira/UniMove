@@ -2,9 +2,9 @@ package com.dm.unimove.db.fb
 
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.firestore
 
 class FBDatabase {
     interface Listener {
@@ -16,7 +16,7 @@ class FBDatabase {
     }
 
     private val auth = Firebase.auth
-    private val db = Firebase.firestore
+    private val db = FirebaseFirestore.getInstance()
     private var ridesListReg: ListenerRegistration? = null
     private var listener: Listener? = null
 
@@ -41,12 +41,10 @@ class FBDatabase {
                     if (ex != null) return@addSnapshotListener
                     snapshots?.documentChanges?.forEach { change ->
                         val fbRide = change.document.toObject(FBRide::class.java)
-                        if (fbRide != null) {
-                            when (change.type) {
-                                DocumentChange.Type.ADDED -> listener?.onRideAdded(fbRide)
-                                DocumentChange.Type.MODIFIED -> listener?.onRideUpdated(fbRide)
-                                DocumentChange.Type.REMOVED -> listener?.onRideRemoved(fbRide)
-                            }
+                        when (change.type) {
+                            DocumentChange.Type.ADDED -> listener?.onRideAdded(fbRide)
+                            DocumentChange.Type.MODIFIED -> listener?.onRideUpdated(fbRide)
+                            DocumentChange.Type.REMOVED -> listener?.onRideRemoved(fbRide)
                         }
                     }
                 }

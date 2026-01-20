@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
+import com.google.firebase.auth.FirebaseAuth
 
 class MainViewModel : ViewModel() {
     private val db = Firebase.firestore
@@ -23,21 +24,34 @@ class MainViewModel : ViewModel() {
      * Implementa a lógica de salvar na coleção global e no histórico do motorista.
      */
     fun createNewRide(ride: Ride) {
-        // 1. Cria a carona na coleção grande CARONAS
-        db.collection("CARONAS")
-            .add(ride)
-            .addOnSuccessListener { documentReference ->
-                Log.d("Firestore", "Carona criada com ID: ${documentReference.id}")
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser
 
-                // 2. Adiciona a referência no perfil do motorista (Redundância para histórico rápido)
-                ride.driver_ref?.let { driverRef ->
-                    driverRef.collection("taken_rides_as_driver")
-                        .document(documentReference.id)
-                        .set(mapOf("ride_ref" to documentReference))
-                }
+        if (currentUser == null) {
+            Log.e("Firestore", "Erro: Usuário não autenticado!")
+            return
+        }
+
+        // Referência do motorista baseada no UID logado
+        val driverRef = db.collection("USERS").document(currentUser.uid)
+
+        // Criamos o objeto final com a referência do motorista
+        val finalRide = ride.copy(driver_ref = driverRef)
+
+        // 1. Salva na coleção GLOBAL "CARONAS"
+        db.collection("CARONAS")
+            .add(finalRide)
+            .addOnSuccessListener { docRef ->
+                Log.d("Firestore", "Sucesso Global ID: ${docRef.id}")
+
+                // 2. Salva a redundância no histórico do motorista (sua estrutura final)
+                // Note que usei o nome exato da sua coleção: "caronas como motorista"
+                driverRef.collection("caronas como motorista")
+                    .document(docRef.id)
+                    .set(mapOf("ride_ref" to docRef))
             }
             .addOnFailureListener { e ->
-                Log.w("Firestore", "Erro ao criar carona", e)
+                Log.e("Firestore", "Erro ao salvar: ${e.message}")
             }
     }
 

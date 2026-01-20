@@ -26,8 +26,10 @@ import com.dm.unimove.model.MainViewModel
 import com.dm.unimove.model.Occasion
 import com.dm.unimove.model.PaymentType
 import com.dm.unimove.model.Ride
+import com.dm.unimove.model.RideStatus
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.GeoPoint
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
@@ -133,16 +135,22 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
         item {
             Button(
                 onClick = {
+                    val auth = FirebaseAuth.getInstance()
+                    val currentUser = auth.currentUser
+                    val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    val driverRef = db.collection("USERS").document(currentUser!!.uid)
                     val newRide = Ride(
+                        driver_ref = driverRef, // Referência correta inserida aqui
                         starting_point = Location(startLocationName, startCoords),
                         destination = Location(destLocationName, destCoords),
-                        date_time = selectedTimestamp,
+                        date_time = selectedTimestamp ?: com.google.firebase.Timestamp.now(),
                         occasion = selectedOccasion,
                         payment_type = selectedPayment,
                         ride_value = rideValue.toDoubleOrNull() ?: 0.0,
                         total_seats = totalSeats.toIntOrNull() ?: 0,
                         vehicle_model = vehicleModel,
                         description = description,
+                        status = RideStatus.AVAILABLE,
                         seats_map = emptyMap()
                     )
                     viewModel.createNewRide(newRide)
