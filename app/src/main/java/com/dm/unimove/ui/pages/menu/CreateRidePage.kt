@@ -1,17 +1,27 @@
 package com.dm.unimove.ui.pages.menu
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,17 +37,58 @@ import com.dm.unimove.model.Occasion
 import com.dm.unimove.model.PaymentType
 import com.dm.unimove.model.Ride
 import com.dm.unimove.model.RideStatus
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.GeoPoint
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
+import java.util.Date
 
+@Composable
+fun LocationSelector(
+    label: String,
+    locationName: String,
+    onNameChange: (String) -> Unit,
+    currentLatLng: LatLng,
+    onLocationSelected: (LatLng) -> Unit
+) {
+    Column {
+        OutlinedTextField(
+            value = locationName,
+            onValueChange = onNameChange,
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        GoogleMap(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            cameraPositionState = rememberCameraPositionState {
+                position = CameraPosition.fromLatLngZoom(currentLatLng, 15f)
+            },
+            onMapClick = onLocationSelected // Captura lat/long no clique
+        ) {
+            Marker(state = MarkerState(position = currentLatLng))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
     var startLocationName by remember { mutableStateOf("") }
     var startCoords by remember { mutableStateOf(GeoPoint(0.0, 0.0)) }
+    var startLatLng by remember { mutableStateOf(LatLng(-8.0476, -34.8770)) } // Recife como padrão
 
     var destLocationName by remember { mutableStateOf("") }
     var destCoords by remember { mutableStateOf(GeoPoint(0.0, 0.0)) }
+    var destLatLng by remember { mutableStateOf(LatLng(-8.0476, -34.8770)) }
 
     var selectedTimestamp by remember { mutableStateOf<Timestamp?>(null) }
     var selectedOccasion by remember { mutableStateOf(Occasion.ONE_WAY) }
@@ -48,6 +99,11 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
     var vehicleModel by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
 
+    val datePickerState = rememberDatePickerState()
+    val timePickerState = rememberTimePickerState()
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -55,23 +111,64 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
         item { Text("Criar Nova Carona") }
 
         item {
-            OutlinedTextField(
-                value = startLocationName,
-                onValueChange = { startLocationName = it },
-                label = { Text("Ponto de Partida") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = destLocationName,
-                onValueChange = { destLocationName = it },
-                label = { Text("Destino") },
-                modifier = Modifier.fillMaxWidth()
+            LocationSelector(
+                label = "Ponto de Partida",
+                locationName = startLocationName,
+                onNameChange = { startLocationName = it },
+                currentLatLng = startLatLng,
+                onLocationSelected = { startLatLng = it }
             )
         }
 
         item {
-            Button(onClick = { /* Abrir DatePickerDialog */ }) {
-                Text(selectedTimestamp?.toDate()?.toString() ?: "Selecionar Data e Hora")
+            LocationSelector(
+                label = "Destino",
+                locationName = destLocationName,
+                onNameChange = { destLocationName = it },
+                currentLatLng = destLatLng,
+                onLocationSelected = { destLatLng = it }
+            )
+        }
+
+        item {
+            if (showDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val selectedMillis = datePickerState.selectedDateMillis
+                            if (selectedMillis != null) {
+                                selectedTimestamp = Timestamp(Date(selectedMillis))
+                            }
+                            showDatePicker = false
+                        }) { Text("OK") }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
+
+            if (showTimePicker) {
+                AlertDialog(
+                    onDismissRequest = { showTimePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val calendar = java.util.Calendar.getInstance()
+                            datePickerState.selectedDateMillis?.let { calendar.timeInMillis = it }
+                            calendar.set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
+                            calendar.set(java.util.Calendar.MINUTE, timePickerState.minute)
+
+                            selectedTimestamp = Timestamp(calendar.time)
+                            showTimePicker = false
+                        }) { Text("OK") }
+                    },
+                    text = { TimePicker(state = timePickerState) }
+                )
+            }
+
+            // No seu Button de data:
+            Button(onClick = { showDatePicker = true }) {
+                Text(selectedTimestamp?.toDate()?.toString() ?: "Selecionar Data")
             }
         }
 
@@ -97,7 +194,7 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
                     )
                 }
             }
-            if (selectedPayment == PaymentType.PAID) {
+            if (selectedPayment == PaymentType.PAY) {
                 OutlinedTextField(
                     value = rideValue,
                     onValueChange = { rideValue = it },
@@ -136,25 +233,31 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
             Button(
                 onClick = {
                     val auth = FirebaseAuth.getInstance()
-                    val currentUser = auth.currentUser
-                    val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    val driverRef = db.collection("USERS").document(currentUser!!.uid)
-                    val newRide = Ride(
-                        driver_ref = driverRef, // Referência correta inserida aqui
-                        starting_point = Location(startLocationName, startCoords),
-                        destination = Location(destLocationName, destCoords),
-                        date_time = selectedTimestamp ?: com.google.firebase.Timestamp.now(),
-                        occasion = selectedOccasion,
-                        payment_type = selectedPayment,
-                        ride_value = rideValue.toDoubleOrNull() ?: 0.0,
-                        total_seats = totalSeats.toIntOrNull() ?: 0,
-                        vehicle_model = vehicleModel,
-                        description = description,
-                        status = RideStatus.AVAILABLE,
-                        seats_map = emptyMap()
-                    )
-                    viewModel.createNewRide(newRide)
-                    navController.popBackStack()
+                    auth.currentUser?.let { user ->
+                        val db = FirebaseFirestore.getInstance()
+                        val driverRef = db.collection("USERS").document(user.uid)
+                        val userData = mapOf(
+                            "name" to (viewModel.user.value?.name ?: "Usuário"),
+                            "email" to (user.email ?: "")
+                        )
+                        driverRef.set(userData, com.google.firebase.firestore.SetOptions.merge())
+                        val newRide = Ride(
+                            driver_ref = driverRef,
+                            starting_point = Location(startLocationName, GeoPoint(startLatLng.latitude, startLatLng.longitude)),
+                            destination = Location(destLocationName, GeoPoint(destLatLng.latitude, destLatLng.longitude)),
+                            date_time = selectedTimestamp ?: Timestamp.now(),
+                            occasion = selectedOccasion,
+                            payment_type = selectedPayment,
+                            ride_value = rideValue.toDoubleOrNull() ?: 0.0,
+                            total_seats = totalSeats.toIntOrNull() ?: 0,
+                            vehicle_model = vehicleModel,
+                            description = description,
+                            status = RideStatus.AVAILABLE,
+                            seats_map = emptyMap()
+                        )
+                        viewModel.createNewRide(newRide)
+                        navController.popBackStack()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

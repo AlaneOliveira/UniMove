@@ -24,34 +24,15 @@ class MainViewModel : ViewModel() {
      * Implementa a lógica de salvar na coleção global e no histórico do motorista.
      */
     fun createNewRide(ride: Ride) {
-        val auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser
-
-        if (currentUser == null) {
-            Log.e("Firestore", "Erro: Usuário não autenticado!")
-            return
-        }
-
-        // Referência do motorista baseada no UID logado
-        val driverRef = db.collection("USERS").document(currentUser.uid)
-
-        // Criamos o objeto final com a referência do motorista
-        val finalRide = ride.copy(driver_ref = driverRef)
-
-        // 1. Salva na coleção GLOBAL "CARONAS"
         db.collection("CARONAS")
-            .add(finalRide)
+            .add(ride)
             .addOnSuccessListener { docRef ->
-                Log.d("Firestore", "Sucesso Global ID: ${docRef.id}")
-
-                // 2. Salva a redundância no histórico do motorista (sua estrutura final)
-                // Note que usei o nome exato da sua coleção: "caronas como motorista"
-                driverRef.collection("caronas como motorista")
-                    .document(docRef.id)
-                    .set(mapOf("ride_ref" to docRef))
-            }
-            .addOnFailureListener { e ->
-                Log.e("Firestore", "Erro ao salvar: ${e.message}")
+                ride.driver_ref?.let { driverRef ->
+                    // Usamos o ID da carona como ID do documento na subcoleção
+                    driverRef.collection("caronas como motorista")
+                        .document(docRef.id)
+                        .set(mapOf("ride_ref" to docRef)) // Guarda a referência direta
+                }
             }
     }
 
@@ -93,5 +74,16 @@ class MainViewModel : ViewModel() {
      */
     fun setUser(loggedUser: User) {
         _user.value = loggedUser
+    }
+
+    /**
+     * Cria o documento com o ID do Auth e coloca os campos name e email
+     */
+    fun saveUserToFirestore(user: User, userId: String) {
+        db.collection("USERS").document(userId)
+            .set(user)
+            .addOnSuccessListener {
+                Log.d("Firestore", "Perfil do usuário atualizado com sucesso!")
+            }
     }
 }

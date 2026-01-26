@@ -19,7 +19,7 @@ Occasion (Define o comportamento da corrida, por enquanto fica só como informa�
 // TODO: UM DETALHE QUE ESQUECI DE IMPLEMENTAR É A LÓGICA DE FLUXO DE UMA CARONA DE IDA E VOLTA
 
 enum class RideStatus { AVAILABLE, CANCELED, ON_GOING, FINISHED }
-enum class PaymentType { PAID, NEGOTIABLE, FREE }
+enum class PaymentType { PAY, NEGOTIABLE, FREE }
 enum class Occasion { ONE_WAY, ROUND_TRIP }
 
 data class Location(
