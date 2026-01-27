@@ -64,9 +64,14 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     val context = LocalContext.current
     val rides by viewModel.availableRides
     val RECIFE_FALLBACK = LatLng(-8.0631, -34.8711)
-    var selectedRideForDetail by remember { mutableStateOf<Ride?>(null) }
+
+    // UNIFICADO: Usamos apenas uma variável para guardar o par (ID, Objeto)
+    var selectedRideData by remember { mutableStateOf<Pair<String, Ride>?>(null) }
+
+    val user = FirebaseAuth.getInstance().currentUser
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
+
     val camPosState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(RECIFE_FALLBACK, 12f)
     }
@@ -84,8 +89,6 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
         )
     }
 
-    // 3. Gerenciamento de Localização: Se tiver permissão, foca no usuário.
-    // Se não, mantém no Recife.
     LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) {
             @SuppressLint("MissingPermission")
@@ -104,13 +107,11 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
 
     GoogleMap(
         modifier = modifier.fillMaxSize(),
-        // REMOVIDO: onMapClick que criava caronas por engano
         cameraPositionState = camPosState,
         properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
         uiSettings = MapUiSettings(myLocationButtonEnabled = true)
     ) {
-        // 4. Renderiza as caronas disponíveis com o Pin Azul
-        rides.forEach { ride ->
+        rides.forEach { (docId, ride) ->
             val position = LatLng(
                 ride.starting_point.coordinates.latitude,
                 ride.starting_point.coordinates.longitude
@@ -121,14 +122,19 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                 snippet = "Destino: ${ride.destination.name} | Vagas: ${ride.total_seats}",
                 icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
                 onInfoWindowClick = {
-                    selectedRideForDetail = ride
+                    // Salvamos o par ID e Objeto aqui
+                    selectedRideData = docId to ride
                     showBottomSheet = true
                 }
             )
         }
     }
 
-    if (showBottomSheet && selectedRideForDetail != null) {
+    // Só exibe o BottomSheet se houver dados selecionados
+    if (showBottomSheet && selectedRideData != null) {
+        // Desestruturamos o par para facilitar o uso no layout
+        val (currentRideId, ride) = selectedRideData!!
+
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
             sheetState = sheetState
@@ -142,18 +148,15 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
+                        contentDescription = "Foto do Motorista",
                         modifier = Modifier.size(60.dp),
                         tint = Color(0xFFD1C4E9)
                     )
 
                     Column(modifier = Modifier.padding(start = 16.dp)) {
-                        // TODO: Buscar o nome real via ride.driver_ref futuramente
-                        Text(text = "Motorista: Carona Disponível", fontWeight = FontWeight.Bold)
-
-                        // Valor Dinâmico do Destino
+                        Text(text = "Motorista: Disponível", fontWeight = FontWeight.Bold)
                         Text(
-                            text = "Destino: ${selectedRideForDetail!!.destination.name}",
+                            text = "Destino: ${ride.destination.name}",
                             color = Color(0xFF6200EE),
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -163,26 +166,22 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Valor Dinâmico do Ponto de Partida
-                Text(text = "Ponto de partida: ${selectedRideForDetail!!.starting_point.name}")
+                Text(text = "Ponto de partida: ${ride.starting_point.name}")
 
-                // Formatação Dinâmica de Data e Hora
-                val dataHora = selectedRideForDetail!!.date_time?.toDate()?.let {
+                val dataHora = ride.date_time?.toDate()?.let {
                     java.text.SimpleDateFormat("dd/MM 'às' HH:mm", java.util.Locale.getDefault()).format(it)
                 } ?: "Data não definida"
 
-                Text(text = "$dataHora, ${selectedRideForDetail!!.occasion.name.lowercase().replace("_", " ")}")
+                Text(text = "$dataHora, ${ride.occasion.name.lowercase().replace("_", " ")}")
 
-                // Exibe o valor se não for cortesia
-                if (selectedRideForDetail!!.payment_type == PaymentType.PAY) {
-                    Text(text = "Valor: R$ ${selectedRideForDetail!!.ride_value}", fontWeight = FontWeight.Medium)
+                if (ride.payment_type == PaymentType.PAY) {
+                    Text(text = "Valor: R$ ${ride.ride_value}", fontWeight = FontWeight.Medium)
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Botão Mais Informações
                 Button(
-                    onClick = { /* Navegar para página de detalhes completa */ },
+                    onClick = { /* Detalhes */ },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF82B1FF)),
                     shape = RoundedCornerShape(12.dp)
@@ -190,29 +189,34 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                     Text("... Mais informações")
                 }
 
-                // Botão Agendar (Agora enviando os dados reais)
                 Button(
                     onClick = {
-                        if (viewModel.canUserStartNewActivity()) {
-                            val currentUser = FirebaseAuth.getInstance().currentUser
-                            if (currentUser != null) {
-                                viewModel.sendRideSolicitation(selectedRideForDetail!!, currentUser.uid)
+                        val isBusy = viewModel.user.value?.is_busy ?: false
+
+                        if (!isBusy) {
+                            user?.let { currentUser ->
+                                // PASSAGEM CORRETA: usando as variáveis desestruturadas acima
+                                viewModel.sendRideSolicitation(
+                                    ride = ride,
+                                    rideId = currentRideId,
+                                    passengerId = currentUser.uid
+                                )
                                 showBottomSheet = false
+                                Toast.makeText(context, "Solicitação enviada!", Toast.LENGTH_SHORT).show()
                             }
                         } else {
-                            Toast("Você já possui uma carona em andamento!")
+                            Toast.makeText(context, "Você já possui uma carona em andamento!", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null)
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Agendar carona")
                 }
             }
         }
     }
-
 }

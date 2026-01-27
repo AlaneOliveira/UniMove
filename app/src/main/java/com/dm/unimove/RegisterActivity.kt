@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,7 +32,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Divider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +55,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dm.unimove.model.MainViewModel
 import com.dm.unimove.ui.theme.UnimoveTheme
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -68,7 +68,7 @@ class RegisterActivity : ComponentActivity() {
         setContent {
             UnimoveTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    RegisterPage(modifier = Modifier.padding(innerPadding))
+                    RegisterPage(modifier = Modifier.padding(innerPadding), viewModel = viewModel() )
                 }
             }
         }
@@ -77,7 +77,7 @@ class RegisterActivity : ComponentActivity() {
 
 @Preview(showBackground = true)
 @Composable
-fun RegisterPage(modifier: Modifier = Modifier) {
+fun RegisterPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     var name by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -231,7 +231,6 @@ fun RegisterPage(modifier: Modifier = Modifier) {
                     )
                 ) { Text("CADASTRE-SE", fontSize = 18.sp, fontWeight = FontWeight.SemiBold) }
 
-                // Link para Login
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally

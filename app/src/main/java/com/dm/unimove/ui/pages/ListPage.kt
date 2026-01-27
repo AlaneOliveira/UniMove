@@ -1,7 +1,5 @@
 package com.dm.unimove.ui.pages
 
-import com.dm.unimove.R
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,9 +40,9 @@ fun RideHistoryItem(
             .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // TODO: Imagem do Carro (pode usar um recurso estático por enquanto)
+        // TODO: Imagem do Carro
         /* Image(
-            painter = painterResource(id = R.drawable.ic_car_black), // Substitua pelo seu ícone
+            painter = painterResource(id = R.drawable.ic_car_black),
             contentDescription = "Carro",
             modifier = Modifier.size(80.dp)
         ) */
@@ -54,13 +51,13 @@ fun RideHistoryItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Motorista: ${ride.vehicle_model}", // Ou buscar o nome via driver_ref
+                text = "Motorista: ${ride.vehicle_model}",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
             Text(
                 text = "Destino:",
-                color = Color(0xFF6200EE), // Roxo do seu tema
+                color = Color(0xFF6200EE),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
@@ -95,7 +92,7 @@ fun RideHistoryItem(
             // Botão "Mais informações"
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF8C9EFF), // Azul claro do wireframe
+                color = Color(0xFF8C9EFF),
                 modifier = Modifier.clickable { /* Abrir detalhes */ }
             ) {
                 Text(
@@ -114,7 +111,6 @@ fun ListPage(
     modifier: Modifier = Modifier,
     viewModel: MainViewModel
 ) {
-    // Observa a lista de caronas vinda do Firestore através da ViewModel
     val rideList by viewModel.availableRides
 
     Column(
@@ -122,7 +118,6 @@ fun ListPage(
             .fillMaxSize()
             .padding(top = 16.dp)
     ) {
-        // Título da Seção
         Text(
             text = "Caronas anteriores",
             modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
@@ -136,9 +131,13 @@ fun ListPage(
         LazyColumn(
             modifier = Modifier.fillMaxSize()
         ) {
-            items(rideList) { ride ->
-                RideHistoryItem(ride = ride)
-                Divider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = Color.LightGray)
+            items(rideList) { (docId, rideObject) ->
+                RideHistoryItem(ride = rideObject)
+                Divider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    thickness = 0.5.dp,
+                    color = Color.LightGray
+                )
             }
         }
     }

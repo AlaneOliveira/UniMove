@@ -5,8 +5,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
-import com.google.firebase.auth.FirebaseAuth
 
 class MainViewModel : ViewModel() {
     private val db = Firebase.firestore
@@ -16,8 +16,8 @@ class MainViewModel : ViewModel() {
     val user: State<User?> = _user
 
     // Estado para a lista de caronas (Ex: para o Feed/Mapa)
-    private val _availableRides = mutableStateOf<List<Ride>>(emptyList())
-    val availableRides: State<List<Ride>> = _availableRides
+    private val _availableRides = mutableStateOf<List<Pair<String, Ride>>>(emptyList())
+    val availableRides: State<List<Pair<String, Ride>>> = _availableRides
 
     /**
      * Salva uma nova carona no Firestore.
@@ -44,8 +44,10 @@ class MainViewModel : ViewModel() {
             .whereEqualTo("status", RideStatus.AVAILABLE.name)
             .addSnapshotListener { value, error ->
                 if (error != null) return@addSnapshotListener
-
-                val list = value?.documents?.mapNotNull { it.toObject(Ride::class.java) }
+                val list = value?.documents?.mapNotNull { doc ->
+                    val ride = doc.toObject(Ride::class.java)
+                    if (ride != null) doc.id to ride else null
+                }
                 _availableRides.value = list ?: emptyList()
             }
     }
@@ -63,7 +65,6 @@ class MainViewModel : ViewModel() {
                 }
 
                 if (snapshot != null && snapshot.exists()) {
-                    // Converte o documento do Firestore para o seu modelo User.kt
                     _user.value = snapshot.toObject(User::class.java)
                 }
             }
@@ -88,11 +89,55 @@ class MainViewModel : ViewModel() {
     }
 
     fun canUserStartNewActivity(): Boolean {
-        return _user.value?.is_busy == false
+        val currentUser = _user.value
+        return currentUser?.is_busy == false || currentUser == null
     }
 
     fun updateUserBusyStatus(userId: String, busy: Boolean) {
         db.collection("USERS").document(userId)
             .update("is_busy", busy)
+            .addOnSuccessListener { Log.d("Firestore", "Status de ocupação atualizado: $busy") }
+    }
+
+    fun sendRideSolicitation(ride: Ride, rideId: String, passengerId: String) {
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val passengerRef = db.collection("USERS").document(passengerId)
+        val rideRef = db.collection("CARONAS").document(rideId)
+
+        val solicitation = mapOf(
+            "ride_id" to rideRef,
+            "passenger_ref" to passengerRef,
+            "driver_ref" to ride.driver_ref,
+            "status" to "PENDING",
+            "timestamp" to com.google.firebase.Timestamp.now()
+        )
+
+        db.collection("SOLICITACOES")
+            .add(solicitation)
+            .addOnSuccessListener {
+                Log.d("Firestore", "Solicitação enviada!")
+                updateUserBusyStatus(passengerId, true)
+            }
+            .addOnFailureListener { e ->
+                Log.e("Firestore", "Erro ao enviar solicitação", e)
+            }
+    }
+
+    fun registerNewUser(user: User, password: String, onComplete: (Boolean, String?) -> Unit) {
+        val auth = com.google.firebase.Firebase.auth
+        auth.createUserWithEmailAndPassword(user.email, password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val userId = task.result?.user?.uid
+                    if (userId != null) {
+                        db.collection("USERS").document(userId)
+                            .set(user)
+                            .addOnSuccessListener { onComplete(true, null) }
+                            .addOnFailureListener { e -> onComplete(false, e.message) }
+                    }
+                } else {
+                    onComplete(false, task.exception?.message)
+                }
+            }
     }
 }

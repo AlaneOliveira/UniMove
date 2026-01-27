@@ -1,6 +1,5 @@
 package com.dm.unimove.ui.pages.menu
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -48,7 +48,6 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-import java.util.Date
 
 @Composable
 fun LocationSelector(
@@ -83,6 +82,8 @@ fun LocationSelector(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
+    val context = LocalContext.current
+
     var startLocationName by remember { mutableStateOf("") }
     var startCoords by remember { mutableStateOf(GeoPoint(0.0, 0.0)) }
     var startLatLng by remember { mutableStateOf(LatLng(-8.0476, -34.8770)) } // Recife como padrão
@@ -241,29 +242,23 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
         item {
             Button(
                 onClick = {
-                    if(viewModel.canUserStartNewActivity()){
+                    if (viewModel.canUserStartNewActivity()) {
                         val auth = FirebaseAuth.getInstance()
                         auth.currentUser?.let { user ->
                             val db = FirebaseFirestore.getInstance()
                             val driverRef = db.collection("USERS").document(user.uid)
+
                             val userData = mapOf(
                                 "name" to (viewModel.user.value?.name ?: "Usuário"),
-                                "email" to (user.email ?: "")
+                                "email" to (user.email ?: ""),
+                                "is_busy" to true
                             )
-                            driverRef.set(
-                                userData,
-                                com.google.firebase.firestore.SetOptions.merge()
-                            )
+                            driverRef.set(userData, com.google.firebase.firestore.SetOptions.merge())
+
                             val newRide = Ride(
                                 driver_ref = driverRef,
-                                starting_point = Location(
-                                    startLocationName,
-                                    GeoPoint(startLatLng.latitude, startLatLng.longitude)
-                                ),
-                                destination = Location(
-                                    destLocationName,
-                                    GeoPoint(destLatLng.latitude, destLatLng.longitude)
-                                ),
+                                starting_point = Location(startLocationName, GeoPoint(startLatLng.latitude, startLatLng.longitude)),
+                                destination = Location(destLocationName, GeoPoint(destLatLng.latitude, destLatLng.longitude)),
                                 date_time = selectedTimestamp ?: Timestamp.now(),
                                 occasion = selectedOccasion,
                                 payment_type = selectedPayment,
@@ -271,14 +266,13 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
                                 total_seats = totalSeats.toIntOrNull() ?: 0,
                                 vehicle_model = vehicleModel,
                                 description = description,
-                                status = RideStatus.AVAILABLE,
-                                seats_map = emptyMap()
+                                status = RideStatus.AVAILABLE
                             )
                             viewModel.createNewRide(newRide)
                             navController.popBackStack()
                         }
                     } else {
-                        Toast("Você já possui uma carona em andamento!")
+                        android.widget.Toast.makeText(context, "Você já possui uma carona em andamento!", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
