@@ -86,4 +86,13 @@ class MainViewModel : ViewModel() {
                 Log.d("Firestore", "Perfil do usuário atualizado com sucesso!")
             }
     }
+
+    fun canUserStartNewActivity(): Boolean {
+        return _user.value?.is_busy == false
+    }
+
+    fun updateUserBusyStatus(userId: String, busy: Boolean) {
+        db.collection("USERS").document(userId)
+            .update("is_busy", busy)
+    }
 }

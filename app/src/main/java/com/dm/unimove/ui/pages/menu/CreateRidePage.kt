@@ -1,5 +1,6 @@
 package com.dm.unimove.ui.pages.menu
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -131,30 +132,31 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
         }
 
         item {
+            // 1. Diálogo de Data
             if (showDatePicker) {
                 DatePickerDialog(
                     onDismissRequest = { showDatePicker = false },
                     confirmButton = {
                         TextButton(onClick = {
-                            val selectedMillis = datePickerState.selectedDateMillis
-                            if (selectedMillis != null) {
-                                selectedTimestamp = Timestamp(Date(selectedMillis))
-                            }
                             showDatePicker = false
-                        }) { Text("OK") }
+                            showTimePicker = true // AQUI: Chama o próximo diálogo
+                        }) { Text("Confirmar Data") }
                     }
                 ) {
                     DatePicker(state = datePickerState)
                 }
             }
 
+            // 2. Diálogo de Hora
             if (showTimePicker) {
                 AlertDialog(
                     onDismissRequest = { showTimePicker = false },
                     confirmButton = {
                         TextButton(onClick = {
                             val calendar = java.util.Calendar.getInstance()
+                            // Usa a data que já foi selecionada no passo anterior
                             datePickerState.selectedDateMillis?.let { calendar.timeInMillis = it }
+                            // Adiciona a hora e minuto do TimePicker
                             calendar.set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
                             calendar.set(java.util.Calendar.MINUTE, timePickerState.minute)
 
@@ -162,13 +164,20 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
                             showTimePicker = false
                         }) { Text("OK") }
                     },
+                    title = { Text("Selecione o Horário") },
                     text = { TimePicker(state = timePickerState) }
                 )
             }
 
-            // No seu Button de data:
-            Button(onClick = { showDatePicker = true }) {
-                Text(selectedTimestamp?.toDate()?.toString() ?: "Selecionar Data")
+            // Botão que inicia o processo
+            Button(
+                onClick = { showDatePicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val displayDate = selectedTimestamp?.toDate()?.let {
+                    java.text.SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", java.util.Locale.getDefault()).format(it)
+                } ?: "Selecionar Data e Hora"
+                Text(displayDate)
             }
         }
 
@@ -232,31 +241,44 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
         item {
             Button(
                 onClick = {
-                    val auth = FirebaseAuth.getInstance()
-                    auth.currentUser?.let { user ->
-                        val db = FirebaseFirestore.getInstance()
-                        val driverRef = db.collection("USERS").document(user.uid)
-                        val userData = mapOf(
-                            "name" to (viewModel.user.value?.name ?: "Usuário"),
-                            "email" to (user.email ?: "")
-                        )
-                        driverRef.set(userData, com.google.firebase.firestore.SetOptions.merge())
-                        val newRide = Ride(
-                            driver_ref = driverRef,
-                            starting_point = Location(startLocationName, GeoPoint(startLatLng.latitude, startLatLng.longitude)),
-                            destination = Location(destLocationName, GeoPoint(destLatLng.latitude, destLatLng.longitude)),
-                            date_time = selectedTimestamp ?: Timestamp.now(),
-                            occasion = selectedOccasion,
-                            payment_type = selectedPayment,
-                            ride_value = rideValue.toDoubleOrNull() ?: 0.0,
-                            total_seats = totalSeats.toIntOrNull() ?: 0,
-                            vehicle_model = vehicleModel,
-                            description = description,
-                            status = RideStatus.AVAILABLE,
-                            seats_map = emptyMap()
-                        )
-                        viewModel.createNewRide(newRide)
-                        navController.popBackStack()
+                    if(viewModel.canUserStartNewActivity()){
+                        val auth = FirebaseAuth.getInstance()
+                        auth.currentUser?.let { user ->
+                            val db = FirebaseFirestore.getInstance()
+                            val driverRef = db.collection("USERS").document(user.uid)
+                            val userData = mapOf(
+                                "name" to (viewModel.user.value?.name ?: "Usuário"),
+                                "email" to (user.email ?: "")
+                            )
+                            driverRef.set(
+                                userData,
+                                com.google.firebase.firestore.SetOptions.merge()
+                            )
+                            val newRide = Ride(
+                                driver_ref = driverRef,
+                                starting_point = Location(
+                                    startLocationName,
+                                    GeoPoint(startLatLng.latitude, startLatLng.longitude)
+                                ),
+                                destination = Location(
+                                    destLocationName,
+                                    GeoPoint(destLatLng.latitude, destLatLng.longitude)
+                                ),
+                                date_time = selectedTimestamp ?: Timestamp.now(),
+                                occasion = selectedOccasion,
+                                payment_type = selectedPayment,
+                                ride_value = rideValue.toDoubleOrNull() ?: 0.0,
+                                total_seats = totalSeats.toIntOrNull() ?: 0,
+                                vehicle_model = vehicleModel,
+                                description = description,
+                                status = RideStatus.AVAILABLE,
+                                seats_map = emptyMap()
+                            )
+                            viewModel.createNewRide(newRide)
+                            navController.popBackStack()
+                        }
+                    } else {
+                        Toast("Você já possui uma carona em andamento!")
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
