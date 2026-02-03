@@ -64,11 +64,13 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     val context = LocalContext.current
     val rides by viewModel.availableRides
     val RECIFE_FALLBACK = LatLng(-8.0631, -34.8711)
-
-    // UNIFICADO: Usamos apenas uma variável para guardar o par (ID, Objeto)
     var selectedRideData by remember { mutableStateOf<Pair<String, Ride>?>(null) }
-
     val user = FirebaseAuth.getInstance().currentUser
+    LaunchedEffect(user) {
+        user?.let {
+            viewModel.loadUserProfile(it.uid)
+        }
+    }
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
 
@@ -191,11 +193,10 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
 
                 Button(
                     onClick = {
-                        val isBusy = viewModel.user.value?.is_busy ?: false
-
+                        val userData = viewModel.user.value
+                        val isBusy = userData?.is_busy ?: false
                         if (!isBusy) {
                             user?.let { currentUser ->
-                                // PASSAGEM CORRETA: usando as variáveis desestruturadas acima
                                 viewModel.sendRideSolicitation(
                                     ride = ride,
                                     rideId = currentRideId,

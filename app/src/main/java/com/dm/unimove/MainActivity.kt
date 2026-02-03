@@ -10,38 +10,63 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddRoad
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.rememberNavController
 import com.dm.unimove.model.MainViewModel
-import com.dm.unimove.ui.CityDialog
 import com.dm.unimove.ui.nav.BottomNavBar
 import com.dm.unimove.ui.nav.BottomNavItem
 import com.dm.unimove.ui.nav.MainNavHost
+import com.dm.unimove.ui.nav.Route
+import com.dm.unimove.ui.theme.CustomColors
+import com.dm.unimove.ui.theme.Montserrat
 import com.dm.unimove.ui.theme.UnimoveTheme
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.launch
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import com.dm.unimove.ui.theme.CustomColors
-import com.dm.unimove.ui.theme.Montserrat
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.AddRoad
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.ui.text.style.TextAlign
-import com.dm.unimove.ui.nav.Route
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -58,10 +83,15 @@ class MainActivity : ComponentActivity() {
             )
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
+            val currentUser = Firebase.auth.currentUser
+            LaunchedEffect(currentUser) {
+                currentUser?.let {
+                    viewModel.loadUserProfile(it.uid)
+                }
+            }
 
             UnimoveTheme {
                 Scaffold(
-                    // 1. TOP BAR
                     topBar = {
                         TopAppBar(
                             colors = TopAppBarDefaults.topAppBarColors(
@@ -77,18 +107,15 @@ class MainActivity : ComponentActivity() {
                                         fontFamily = Montserrat,
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 30.sp,
-                                        color = CustomColors.LightBlue, // Usando LightBlue para contraste
+                                        color = CustomColors.LightBlue,
                                         textAlign = TextAlign.Center
                                     )
                                 }
                             },
-                            // 2. Ícone para abrir o Drawer
                             navigationIcon = {
                                 IconButton(onClick = {
                                     scope.launch {
-                                        if (drawerState.isOpen) {
-                                            drawerState.close()
-                                        } else drawerState.open()
+                                        if (drawerState.isClosed) drawerState.open() else drawerState.close()
                                     }
                                 }) {
                                     Icon(
@@ -112,7 +139,6 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     },
-                    // 3. BOTTOM BAR
                     bottomBar = {
                         val items = listOf(
                             BottomNavItem.MapButton,
@@ -128,9 +154,8 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 ) { innerPadding ->
-                    // 4. CONTEÚDO PRINCIPAL: ModalNavigationDrawer
                     ModalNavigationDrawer(
-                        gesturesEnabled = false,
+                        gesturesEnabled = true,
                         drawerState = drawerState,
                         drawerContent = {
                             val targetColor = MaterialTheme.colorScheme.surface
@@ -150,7 +175,6 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Spacer(Modifier.height(80.dp))
 
-                                // ITENS DO DRAWER
                                 NavigationDrawerItem(
                                     icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
                                     label = { Text(text = "Perfil") },
@@ -165,7 +189,13 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             drawerState.close()
-                                            navController.navigate(Route.CreateRide)
+                                            navController.navigate(Route.CreateRide) {
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         }
                                     },
                                     colors = itemColors

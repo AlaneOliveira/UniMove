@@ -1,55 +1,63 @@
 package com.dm.unimove
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dm.unimove.model.MainViewModel
 import com.dm.unimove.ui.theme.UnimoveTheme
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material3.HorizontalDivider
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +74,7 @@ class LoginActivity : ComponentActivity() {
 }
 
 @Composable
-fun LoginPage(modifier: Modifier = Modifier) {
+fun LoginPage(modifier: Modifier = Modifier, viewModel : MainViewModel = viewModel()) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var rememberMe by rememberSaveable { mutableStateOf(false) }
@@ -163,26 +171,19 @@ fun LoginPage(modifier: Modifier = Modifier) {
                         Firebase.auth.signInWithEmailAndPassword(email, password)
                             .addOnCompleteListener(activity) { task ->
                                 if (task.isSuccessful) {
-                                    val sharedPref = activity.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-                                    if (rememberMe) {
-                                        with(sharedPref.edit()) {
-                                            putBoolean("remember_me", true)
-                                            apply()
-                                        }
-                                    } else {
-                                        with(sharedPref.edit()) {
-                                            putBoolean("remember_me", false)
-                                            apply()
-                                        }
+                                    val userId = task.result?.user?.uid
+                                    if (userId != null) {
+                                        viewModel.loadUserProfile(userId)
+
+                                        Toast.makeText(activity, "Login feito com sucesso!", Toast.LENGTH_LONG).show()
+                                        val intent =
+                                            Intent(activity, MainActivity::class.java).apply {
+                                                // Limpa a pilha de navegação para que o usuário não volte para a tela de login
+                                                flags =
+                                                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                            }
+                                        activity.startActivity(intent)
                                     }
-                                    Toast.makeText(activity, "Login feito com sucesso!", Toast.LENGTH_LONG).show()
-                                    val intent =
-                                        Intent(activity, MainActivity::class.java).apply {
-                                            // Limpa a pilha de navegação para que o usuário não volte para a tela de login
-                                            flags =
-                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                        }
-                                    activity.startActivity(intent)
                                 } else {
                                     Toast.makeText(activity, "Login falhou! ${task.exception?.message}", Toast.LENGTH_LONG).show()
                                 }

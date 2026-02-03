@@ -243,20 +243,13 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
             Button(
                 onClick = {
                     if (viewModel.canUserStartNewActivity()) {
-                        val auth = FirebaseAuth.getInstance()
-                        auth.currentUser?.let { user ->
-                            val db = FirebaseFirestore.getInstance()
-                            val driverRef = db.collection("USERS").document(user.uid)
 
-                            val userData = mapOf(
-                                "name" to (viewModel.user.value?.name ?: "Usuário"),
-                                "email" to (user.email ?: ""),
-                                "is_busy" to true
-                            )
-                            driverRef.set(userData, com.google.firebase.firestore.SetOptions.merge())
+                        val userUid = FirebaseAuth.getInstance().currentUser?.uid
+                        if (userUid != null) {
+                            viewModel.updateUserBusyStatus(userUid, true)
 
                             val newRide = Ride(
-                                driver_ref = driverRef,
+                                driver_ref = FirebaseFirestore.getInstance().collection("USERS").document(userUid),
                                 starting_point = Location(startLocationName, GeoPoint(startLatLng.latitude, startLatLng.longitude)),
                                 destination = Location(destLocationName, GeoPoint(destLatLng.latitude, destLatLng.longitude)),
                                 date_time = selectedTimestamp ?: Timestamp.now(),
@@ -269,7 +262,7 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
                                 status = RideStatus.AVAILABLE
                             )
                             viewModel.createNewRide(newRide)
-                            navController.popBackStack()
+                            navController.popBackStack() // Volta para o mapa
                         }
                     } else {
                         android.widget.Toast.makeText(context, "Você já possui uma carona em andamento!", android.widget.Toast.LENGTH_SHORT).show()

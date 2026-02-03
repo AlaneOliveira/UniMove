@@ -1,7 +1,6 @@
 package com.dm.unimove
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -58,8 +57,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dm.unimove.model.MainViewModel
 import com.dm.unimove.ui.theme.UnimoveTheme
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 
 class RegisterActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -193,34 +190,24 @@ fun RegisterPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                             confirmpassword = ""
                             return@Button
                         }
-                        Firebase.auth.createUserWithEmailAndPassword(email, password)
-                            .addOnCompleteListener(activity) { task ->
-                                if (task.isSuccessful) {
-                                    val sharedPref = activity.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-                                    if (rememberMe) {
-                                        with(sharedPref.edit()) {
-                                            putBoolean("remember_me", true)
-                                            apply()
-                                        }
-                                    } else {
-                                        with(sharedPref.edit()) {
-                                            putBoolean("remember_me", false)
-                                            apply()
-                                        }
-                                    }
 
-                                    Toast.makeText(activity, "Cadastro feito com sucesso!", Toast.LENGTH_LONG).show()
-                                    val intent =
-                                        Intent(activity, MainActivity::class.java).apply {
-                                            // Limpa a pilha de navegação para que o usuário não volte para a tela de registro
-                                            flags =
-                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                        }
-                                    activity.startActivity(intent)
-                                } else {
-                                    Toast.makeText(activity, "Cadastro falhou! ${task.exception?.message}", Toast.LENGTH_LONG).show()
+                        val newUser = com.dm.unimove.model.User(
+                            name = name,
+                            email = email,
+                            is_busy = false
+                        )
+
+                        viewModel.registerNewUser(newUser, password) { success, errorMessage ->
+                            if (success) {
+                                Toast.makeText(activity, "Cadastro feito com sucesso!", Toast.LENGTH_LONG).show()
+                                val intent = Intent(activity, MainActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                                 }
+                                activity.startActivity(intent)
+                            } else {
+                                Toast.makeText(activity, "Erro: $errorMessage", Toast.LENGTH_LONG).show()
                             }
+                        }
                     },
                     enabled = email.isNotEmpty() && password.isNotEmpty() && name.isNotEmpty() && confirmpassword.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth().height(56.dp),

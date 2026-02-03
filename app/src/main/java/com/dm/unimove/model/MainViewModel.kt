@@ -131,9 +131,7 @@ class MainViewModel : ViewModel() {
                     val userId = task.result?.user?.uid
                     if (userId != null) {
                         db.collection("USERS").document(userId)
-                            .set(user)
-                            .addOnSuccessListener { onComplete(true, null) }
-                            .addOnFailureListener { e -> onComplete(false, e.message) }
+                            .set(user).addOnSuccessListener { onComplete(true, null) }.addOnFailureListener { e -> onComplete(false, e.message) }
                     }
                 } else {
                     onComplete(false, task.exception?.message)
