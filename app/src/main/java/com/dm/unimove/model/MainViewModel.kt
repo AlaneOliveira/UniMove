@@ -100,6 +100,12 @@ class MainViewModel : ViewModel() {
     }
 
     fun sendRideSolicitation(ride: Ride, rideId: String, passengerId: String) {
+        val currentUser = _user.value
+        if (currentUser?.is_busy == true) {
+            Log.w("Ride", "Usuário já está ocupado")
+            return
+        }
+
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         val passengerRef = db.collection("USERS").document(passengerId)
         val rideRef = db.collection("CARONAS").document(rideId)

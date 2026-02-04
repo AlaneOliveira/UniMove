@@ -155,17 +155,15 @@ class MainActivity : ComponentActivity() {
                     }
                 ) { innerPadding ->
                     ModalNavigationDrawer(
-                        gesturesEnabled = true,
+                        gesturesEnabled = false,
                         drawerState = drawerState,
                         drawerContent = {
                             val targetColor = MaterialTheme.colorScheme.surface
                             val itemColors = NavigationDrawerItemDefaults.colors(
                                 unselectedIconColor = targetColor,
                                 unselectedTextColor = targetColor,
-
                                 selectedIconColor = targetColor,
                                 selectedTextColor = targetColor,
-
                                 selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                             )
                             ModalDrawerSheet(

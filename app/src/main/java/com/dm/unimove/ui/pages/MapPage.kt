@@ -73,7 +73,7 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     }
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
-
+    val isBusy = viewModel.user.value ?.is_busy ?: true
     val camPosState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(RECIFE_FALLBACK, 12f)
     }
@@ -192,9 +192,8 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                 }
 
                 Button(
+                    enabled = !isBusy,
                     onClick = {
-                        val userData = viewModel.user.value
-                        val isBusy = userData?.is_busy ?: false
                         if (!isBusy) {
                             user?.let { currentUser ->
                                 viewModel.sendRideSolicitation(

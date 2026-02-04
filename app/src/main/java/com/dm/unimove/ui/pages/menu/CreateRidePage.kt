@@ -243,7 +243,6 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
             Button(
                 onClick = {
                     if (viewModel.canUserStartNewActivity()) {
-
                         val userUid = FirebaseAuth.getInstance().currentUser?.uid
                         if (userUid != null) {
                             viewModel.updateUserBusyStatus(userUid, true)
