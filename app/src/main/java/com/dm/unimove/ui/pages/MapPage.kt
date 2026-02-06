@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,6 +67,7 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     val RECIFE_FALLBACK = LatLng(-8.0631, -34.8711)
     var selectedRideData by remember { mutableStateOf<Pair<String, Ride>?>(null) }
     val user = FirebaseAuth.getInstance().currentUser
+
     LaunchedEffect(user) {
         user?.let {
             viewModel.loadUserProfile(it.uid)
@@ -107,6 +109,13 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
         }
     }
 
+    LaunchedEffect(user) {
+        user?.let {
+            viewModel.loadUserProfile(it.uid)
+            viewModel.fetchUserSolicitations(it.uid)
+        }
+    }
+
     GoogleMap(
         modifier = modifier.fillMaxSize(),
         cameraPositionState = camPosState,
@@ -124,7 +133,6 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                 snippet = "Destino: ${ride.destination.name} | Vagas: ${ride.total_seats}",
                 icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE),
                 onInfoWindowClick = {
-                    // Salvamos o par ID e Objeto aqui
                     selectedRideData = docId to ride
                     showBottomSheet = true
                 }
@@ -132,9 +140,7 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
         }
     }
 
-    // Só exibe o BottomSheet se houver dados selecionados
     if (showBottomSheet && selectedRideData != null) {
-        // Desestruturamos o par para facilitar o uso no layout
         val (currentRideId, ride) = selectedRideData!!
 
         ModalBottomSheet(
@@ -183,7 +189,7 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = { /* Detalhes */ },
+                    onClick = { /* TODO: Detalhes */ },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF82B1FF)),
                     shape = RoundedCornerShape(12.dp)
@@ -191,8 +197,11 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                     Text("... Mais informações")
                 }
 
+                val solicitadosIds by viewModel.userSolicitadosIds
+                val jaSolicitou = solicitadosIds.contains(currentRideId)
+
                 Button(
-                    enabled = !isBusy,
+                    enabled = !isBusy && !jaSolicitou,
                     onClick = {
                         if (!isBusy) {
                             user?.let { currentUser ->
@@ -204,17 +213,21 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                                 showBottomSheet = false
                                 Toast.makeText(context, "Solicitação enviada!", Toast.LENGTH_SHORT).show()
                             }
-                        } else {
-                            Toast.makeText(context, "Você já possui uma carona em andamento!", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (jaSolicitou) Color.Gray else Color(0xFF6200EE)
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(
+                        imageVector = if (jaSolicitou) Icons.Default.Close else Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text("Agendar carona")
+                    Text(if (jaSolicitou) "Solicitação já enviada" else "Agendar carona")
                 }
             }
         }

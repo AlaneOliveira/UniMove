@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.firestore
 
 class MainViewModel : ViewModel() {
@@ -24,6 +25,9 @@ class MainViewModel : ViewModel() {
 
     private val _pendingSolicitations = mutableStateOf<List<Pair<String, Map<String, Any>>>>(emptyList())
     val pendingSolicitations: State<List<Pair<String, Map<String, Any>>>> = _pendingSolicitations
+
+    private val _userSolicitadosIds = mutableStateOf<Set<String>>(emptySet())
+    val userSolicitadosIds: State<Set<String>> = _userSolicitadosIds
 
     /**
      * Salva uma nova carona no Firestore.
@@ -128,7 +132,6 @@ class MainViewModel : ViewModel() {
             .add(solicitation)
             .addOnSuccessListener {
                 Log.d("Firestore", "Solicitação enviada!")
-                updateUserBusyStatus(passengerId, true)
             }
             .addOnFailureListener { e ->
                 Log.e("Firestore", "Erro ao enviar solicitação", e)
@@ -184,16 +187,11 @@ class MainViewModel : ViewModel() {
         val rideRef = db.collection("CARONAS").document(rideId)
         val passengerRef = db.collection("USERS").document(passengerId)
 
-        // 1. Atualiza o status da solicitação para ACEITO
         batch.update(solicitationRef, "status", "ACCEPTED")
-
-        // 2. Adiciona o passageiro na lista de passageiros da carona
-        // Certifique-se de que na sua classe Ride, passenger_refs seja uma List<DocumentReference>
         batch.update(rideRef, "passenger_refs", com.google.firebase.firestore.FieldValue.arrayUnion(passengerRef))
-
         batch.commit().addOnSuccessListener {
-            Log.d("Firestore", "Passageiro aceito com sucesso!")
-            // O SnapshotListener da RidePage cuidará de atualizar a lista na tela
+            updateUserBusyStatus(passengerId, true)
+            Log.d("Firestore", "Passageiro aceito e bloqueado para novas ações.")
         }
     }
 
@@ -203,6 +201,19 @@ class MainViewModel : ViewModel() {
             .addOnSuccessListener {
                 // Liberamos o passageiro para pedir outra carona se ele for rejeitado
                 updateUserBusyStatus(passengerId, false)
+            }
+    }
+
+    fun fetchUserSolicitations(userId: String) {
+        val passengerRef = db.collection("USERS").document(userId)
+        db.collection("SOLICITACOES")
+            .whereEqualTo("passenger_ref", passengerRef)
+            .addSnapshotListener { snapshot, _ ->
+                val ids = snapshot?.documents?.mapNotNull { doc ->
+                    val rideRef = doc.get("ride_id") as? DocumentReference
+                    rideRef?.id
+                }?.toSet()
+                _userSolicitadosIds.value = ids ?: emptySet()
             }
     }
 }
