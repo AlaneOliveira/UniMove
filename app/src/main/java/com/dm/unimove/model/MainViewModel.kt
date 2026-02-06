@@ -19,6 +19,12 @@ class MainViewModel : ViewModel() {
     private val _availableRides = mutableStateOf<List<Pair<String, Ride>>>(emptyList())
     val availableRides: State<List<Pair<String, Ride>>> = _availableRides
 
+    private val _activeRide = mutableStateOf<Pair<String, Ride>?>(null)
+    val activeRide: State<Pair<String, Ride>?> = _activeRide
+
+    private val _pendingSolicitations = mutableStateOf<List<Pair<String, Map<String, Any>>>>(emptyList())
+    val pendingSolicitations: State<List<Pair<String, Map<String, Any>>>> = _pendingSolicitations
+
     /**
      * Salva uma nova carona no Firestore.
      * Implementa a lógica de salvar na coleção global e no histórico do motorista.
@@ -142,6 +148,61 @@ class MainViewModel : ViewModel() {
                 } else {
                     onComplete(false, task.exception?.message)
                 }
+            }
+    }
+
+    fun fetchActiveRide(userId: String) {
+        val userRef = db.collection("USERS").document(userId)
+        db.collection("CARONAS")
+            .whereEqualTo("driver_ref", userRef)
+            .whereIn("status", listOf("AVAILABLE", "ON_GOING"))
+            .addSnapshotListener { snapshot, _ ->
+                val doc = snapshot?.documents?.firstOrNull()
+                if (doc != null) {
+                    _activeRide.value = doc.id to doc.toObject(Ride::class.java)!!
+                    fetchSolicitationsForRide(doc.id) // Se é motorista, busca quem pediu carona
+                } else {
+                    // 2. Se não achou como motorista, procura como PASSAGEIRO aceito
+                    // TODO: Implementar lógica de busca em SOLICITACOES com status 'ACCEPTED'
+                }
+            }
+    }
+
+    private fun fetchSolicitationsForRide(rideId: String) {
+        val rideRef = db.collection("CARONAS").document(rideId)
+        db.collection("SOLICITACOES")
+            .whereEqualTo("ride_id", rideRef)
+            .whereEqualTo("status", "PENDING")
+            .addSnapshotListener { snapshot, _ ->
+                _pendingSolicitations.value = snapshot?.documents?.map { it.id to it.data!! } ?: emptyList()
+            }
+    }
+
+    fun acceptPassenger(solicitationId: String, rideId: String, passengerId: String) {
+        val batch = db.batch()
+        val solicitationRef = db.collection("SOLICITACOES").document(solicitationId)
+        val rideRef = db.collection("CARONAS").document(rideId)
+        val passengerRef = db.collection("USERS").document(passengerId)
+
+        // 1. Atualiza o status da solicitação para ACEITO
+        batch.update(solicitationRef, "status", "ACCEPTED")
+
+        // 2. Adiciona o passageiro na lista de passageiros da carona
+        // Certifique-se de que na sua classe Ride, passenger_refs seja uma List<DocumentReference>
+        batch.update(rideRef, "passenger_refs", com.google.firebase.firestore.FieldValue.arrayUnion(passengerRef))
+
+        batch.commit().addOnSuccessListener {
+            Log.d("Firestore", "Passageiro aceito com sucesso!")
+            // O SnapshotListener da RidePage cuidará de atualizar a lista na tela
+        }
+    }
+
+    fun rejectPassenger(solicitationId: String, passengerId: String) {
+        db.collection("SOLICITACOES").document(solicitationId)
+            .update("status", "REJECTED")
+            .addOnSuccessListener {
+                // Liberamos o passageiro para pedir outra carona se ele for rejeitado
+                updateUserBusyStatus(passengerId, false)
             }
     }
 }
