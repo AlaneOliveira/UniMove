@@ -1,5 +1,6 @@
 package com.dm.unimove.ui.pages.menu
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,15 +9,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -28,9 +40,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.dm.unimove.model.Location
 import com.dm.unimove.model.MainViewModel
@@ -38,16 +53,13 @@ import com.dm.unimove.model.Occasion
 import com.dm.unimove.model.PaymentType
 import com.dm.unimove.model.Ride
 import com.dm.unimove.model.RideStatus
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
+import com.dm.unimove.ui.theme.CustomColors
+import com.dm.unimove.ui.theme.Montserrat
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.android.gms.maps.model.LatLng
 
 @Composable
 fun LocationSelector(
@@ -57,24 +69,31 @@ fun LocationSelector(
     currentLatLng: LatLng,
     onLocationSelected: (LatLng) -> Unit
 ) {
+    var showMapDialog by remember { mutableStateOf(false) }
+
     Column {
         OutlinedTextField(
             value = locationName,
             onValueChange = onNameChange,
             label = { Text(label) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            // Ícone que indica que o mapa pode ser aberto
+            trailingIcon = {
+                IconButton(onClick = { showMapDialog = true }) {
+                    Icon(Icons.Default.LocationOn, contentDescription = "Abrir mapa", tint = CustomColors.BrightPurple)
+                }
+            }
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        GoogleMap(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            cameraPositionState = rememberCameraPositionState {
-                position = CameraPosition.fromLatLngZoom(currentLatLng, 15f)
-            },
-            onMapClick = onLocationSelected // Captura lat/long no clique
-        ) {
-            Marker(state = MarkerState(position = currentLatLng))
+
+        if (showMapDialog) {
+            MapSelectionDialog(
+                initialLatLng = currentLatLng,
+                onDismiss = { showMapDialog = false },
+                onLocationConfirmed = {
+                    onLocationSelected(it)
+                    showMapDialog = false
+                }
+            )
         }
     }
 }
@@ -106,147 +125,198 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item { Text("Criar Nova Carona") }
-
-        item {
-            LocationSelector(
-                label = "Ponto de Partida",
-                locationName = startLocationName,
-                onNameChange = { startLocationName = it },
-                currentLatLng = startLatLng,
-                onLocationSelected = { startLatLng = it }
-            )
-        }
-
-        item {
-            LocationSelector(
-                label = "Destino",
-                locationName = destLocationName,
-                onNameChange = { destLocationName = it },
-                currentLatLng = destLatLng,
-                onLocationSelected = { destLatLng = it }
-            )
-        }
-
-        item {
-            // 1. Diálogo de Data
-            if (showDatePicker) {
-                DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showDatePicker = false
-                            showTimePicker = true // AQUI: Chama o próximo diálogo
-                        }) { Text("Confirmar Data") }
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Criar carona",
+                        fontFamily = Montserrat,
+                        fontWeight = FontWeight.Bold,
+                        color = CustomColors.BrightPurple,
+                        fontSize = 20.sp,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
-                ) {
-                    DatePicker(state = datePickerState)
                 }
-            }
-
-            // 2. Diálogo de Hora
-            if (showTimePicker) {
-                AlertDialog(
-                    onDismissRequest = { showTimePicker = false },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            val calendar = java.util.Calendar.getInstance()
-                            // Usa a data que já foi selecionada no passo anterior
-                            datePickerState.selectedDateMillis?.let { calendar.timeInMillis = it }
-                            // Adiciona a hora e minuto do TimePicker
-                            calendar.set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
-                            calendar.set(java.util.Calendar.MINUTE, timePickerState.minute)
-
-                            selectedTimestamp = Timestamp(calendar.time)
-                            showTimePicker = false
-                        }) { Text("OK") }
-                    },
-                    title = { Text("Selecione o Horário") },
-                    text = { TimePicker(state = timePickerState) }
+            )
+        }
+    ) { innerPadding ->
+        // CORREÇÃO: O LazyColumn deve envolver TODOS os items até o final da página
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding) // CORREÇÃO: Usando o padding do Scaffold
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                LocationSelector(
+                    label = "Local de Destino",
+                    locationName = destLocationName,
+                    onNameChange = { destLocationName = it },
+                    currentLatLng = destLatLng,
+                    onLocationSelected = { destLatLng = it }
                 )
             }
 
-            // Botão que inicia o processo
-            Button(
-                onClick = { showDatePicker = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val displayDate = selectedTimestamp?.toDate()?.let {
-                    java.text.SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", java.util.Locale.getDefault()).format(it)
-                } ?: "Selecionar Data e Hora"
-                Text(displayDate)
+            item {
+                LocationSelector(
+                    label = "Ponto de Partida",
+                    locationName = startLocationName,
+                    onNameChange = { startLocationName = it },
+                    currentLatLng = startLatLng,
+                    onLocationSelected = { startLatLng = it }
+                )
             }
-        }
 
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Occasion.entries.forEach { occ ->
-                    FilterChip(
-                        selected = selectedOccasion == occ,
-                        onClick = { selectedOccasion = occ },
-                        label = { Text(occ.name) }
+            item {
+                // Diálogos de Data e Hora
+                if (showDatePicker) {
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showDatePicker = false
+                                showTimePicker = true
+                            }) { Text("Confirmar Data") }
+                        }
+                    ) { DatePicker(state = datePickerState) }
+                }
+
+                if (showTimePicker) {
+                    AlertDialog(
+                        onDismissRequest = { showTimePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val calendar = java.util.Calendar.getInstance()
+                                datePickerState.selectedDateMillis?.let { calendar.timeInMillis = it }
+                                calendar.set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
+                                calendar.set(java.util.Calendar.MINUTE, timePickerState.minute)
+                                selectedTimestamp = Timestamp(calendar.time)
+                                showTimePicker = false
+                            }) { Text("OK") }
+                        },
+                        title = { Text("Selecione o Horário") },
+                        text = { TimePicker(state = timePickerState) }
+                    )
+                }
+
+                Button(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F0F5), contentColor = Color.Black),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    val displayDate = selectedTimestamp?.toDate()?.let {
+                        java.text.SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", java.util.Locale.getDefault()).format(it)
+                    } ?: "Selecionar Data e Hora"
+                    Text(displayDate)
+                }
+            }
+
+            // SWITCH DE OCASIÃO (Ida e Volta / Somente Ida)
+            item {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Occasion.entries.forEach { occ ->
+                        val label = when (occ) {
+                            Occasion.ONE_WAY -> "Somente Ida"
+                            Occasion.ROUND_TRIP -> "Ida e Volta"
+                        }
+                        Button(
+                            onClick = { selectedOccasion = occ },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selectedOccasion == occ) Color(0xFFE8E0FF) else Color.White,
+                                contentColor = Color.Black
+                            ),
+                            shape = if (occ == Occasion.ONE_WAY)
+                                RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
+                            else RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp),
+                            border = BorderStroke(1.dp, Color.LightGray)
+                        ) {
+                            if (selectedOccasion == occ) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(label)
+                        }
+                    }
+                }
+            }
+
+            // SWITCH DE PAGAMENTO (Cortesia / A negociar / A pagar)
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    PaymentType.entries.forEach { pay ->
+                        val label = when (pay) {
+                            PaymentType.FREE -> "Cortesia"
+                            PaymentType.PAY -> "A pagar"
+                            PaymentType.NEGOTIABLE -> "A negociar"
+                        }
+                        Button(
+                            onClick = { selectedPayment = pay },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selectedPayment == pay) Color(0xFFE8E0FF) else Color.White,
+                                contentColor = Color.Black
+                            ),
+                            shape = RoundedCornerShape(24.dp),
+                            border = BorderStroke(1.dp, Color.LightGray)
+                        ) {
+                            Text(label, fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                if (selectedPayment == PaymentType.PAY) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = rideValue,
+                        onValueChange = { rideValue = it },
+                        label = { Text("Valor (R$)") },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
-        }
 
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PaymentType.entries.forEach { pay ->
-                    FilterChip(
-                        selected = selectedPayment == pay,
-                        onClick = { selectedPayment = pay },
-                        label = { Text(pay.name) }
-                    )
-                }
-            }
-            if (selectedPayment == PaymentType.PAY) {
+            item {
                 OutlinedTextField(
-                    value = rideValue,
-                    onValueChange = { rideValue = it },
-                    label = { Text("Valor (R$)") },
+                    value = vehicleModel,
+                    onValueChange = { vehicleModel = it },
+                    label = { Text("Modelo do Veículo") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-        }
 
-        item {
-            OutlinedTextField(
-                value = vehicleModel,
-                onValueChange = { vehicleModel = it },
-                label = { Text("Modelo do Veículo") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = totalSeats,
-                onValueChange = { totalSeats = it },
-                label = { Text("Total de Vagas") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+            item {
+                OutlinedTextField(
+                    value = totalSeats,
+                    onValueChange = { totalSeats = it },
+                    label = { Text("Total de Vagas") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
-        item {
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Descrição/Recados") },
-                modifier = Modifier.fillMaxWidth().height(100.dp)
-            )
-        }
+            item {
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descrição/Recados") },
+                    modifier = Modifier.fillMaxWidth().height(100.dp)
+                )
+            }
 
-        item {
-            Button(
-                onClick = {
-                    if (viewModel.canUserStartNewActivity()) {
+            item {
+                Button(
+                    onClick = {
                         val userUid = FirebaseAuth.getInstance().currentUser?.uid
-                        if (userUid != null) {
+                        if (userUid != null && viewModel.canUserStartNewActivity()) {
                             viewModel.updateUserBusyStatus(userUid, true)
-
                             val newRide = Ride(
                                 driver_ref = FirebaseFirestore.getInstance().collection("USERS").document(userUid),
                                 starting_point = Location(startLocationName, GeoPoint(startLatLng.latitude, startLatLng.longitude)),
@@ -261,16 +331,16 @@ fun CreateRidePage(viewModel: MainViewModel, navController: NavController) {
                                 status = RideStatus.AVAILABLE
                             )
                             viewModel.createNewRide(newRide)
-                            navController.popBackStack() // Volta para o mapa
+                            navController.popBackStack()
                         }
-                    } else {
-                        android.widget.Toast.makeText(context, "Você já possui uma carona em andamento!", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Publicar Carona")
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CustomColors.BrightPurple)
+                ) {
+                    Text("Publicar Carona", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
-        }
+        } // FIM DO LazyColumn
     }
 }
