@@ -78,6 +78,15 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     val RECIFE_FALLBACK = LatLng(-8.0631, -34.8711)
     var selectedRideData by remember { mutableStateOf<Pair<String, Ride>?>(null) }
     val user = FirebaseAuth.getInstance().currentUser
+    var driverName by remember { mutableStateOf("Carregando...") }
+
+    LaunchedEffect(selectedRideData) {
+        selectedRideData?.let { (_, ride) ->
+            ride.driver_ref?.get()?.addOnSuccessListener { snapshot ->
+                driverName = snapshot.getString("name") ?: "Motorista Desconhecido"
+            }
+        }
+    }
 
     LaunchedEffect(user) {
         user?.let {
@@ -189,20 +198,19 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                         Icon(
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = null,
-                            modifier = Modifier.padding(8.dp),
                             tint = Color(0xFF9575CD)
                         )
                     }
 
                     Column(modifier = Modifier.padding(start = 16.dp)) {
                         Text(
-                            text = "Motorista: Disponível",
+                            text = "Motorista: $driverName",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
                         Text(
                             text = "Destino: ${ride.destination.name}",
-                            color = Color(0xFF6200EE), // Roxo do design
+                            color = Color(0xFF6200EE),
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 20.sp
                         )
@@ -211,18 +219,18 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Ponto de partida: ${ride.starting_point.name}",
-                    fontSize = 14.sp,
-                    color = Color.DarkGray
-                )
-
+                val occasionLabel = if (ride.occasion.name == "ROUND_TRIP") "ida e volta" else "somente ida"
                 val dataHora = ride.date_time?.toDate()?.let {
                     java.text.SimpleDateFormat("dd/MM 'às' HH:mm", java.util.Locale.getDefault()).format(it)
                 } ?: "Data não definida"
 
                 Text(
-                    text = "$dataHora, ${ride.occasion.name.lowercase().replace("_", " ")}",
+                    text = "Ponto de partida: ${ride.starting_point.name}",
+                    fontSize = 14.sp,
+                    color = Color.DarkGray
+                )
+                Text(
+                    text = "$dataHora, $occasionLabel", // Exibe "20/02 às 04:00, round trip" de forma limpa
                     fontSize = 14.sp
                 )
 
