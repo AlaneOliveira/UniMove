@@ -44,7 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavController
 import com.dm.unimove.model.MainViewModel
 import com.dm.unimove.model.Ride
 import com.dm.unimove.ui.nav.Route
@@ -70,7 +70,11 @@ fun getResizedIcon(context: android.content.Context, resourceId: Int, width: Int
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
+fun MapPage(
+    modifier: Modifier = Modifier,
+    viewModel: MainViewModel,
+    navController: NavController  // ✅ CORRIGIDO: recebe o navController do MainNavHost
+) {
     LaunchedEffect(Unit) {
         viewModel.fetchAvailableRides()
     }
@@ -81,7 +85,9 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     var selectedRideData by remember { mutableStateOf<Pair<String, Ride>?>(null) }
     val user = FirebaseAuth.getInstance().currentUser
     var driverName by remember { mutableStateOf("Carregando...") }
-    val navController = rememberNavController()
+
+    // ❌ REMOVIDO: val navController = rememberNavController()
+    // Esse era o causador do crash — criava um NavController sem grafo de navegação
 
     LaunchedEffect(selectedRideData) {
         selectedRideData?.let { (_, ride) ->
@@ -94,11 +100,14 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     LaunchedEffect(user) {
         user?.let {
             viewModel.loadUserProfile(it.uid)
+            viewModel.fetchUserSolicitations(it.uid)
         }
     }
+
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
-    val isBusy = viewModel.user.value ?.is_busy ?: true
+    val isBusy = viewModel.user.value?.is_busy ?: true
+
     val camPosState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(RECIFE_FALLBACK, 12f)
     }
@@ -132,21 +141,13 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
         }
     }
 
-    LaunchedEffect(user) {
-        user?.let {
-            viewModel.loadUserProfile(it.uid)
-            viewModel.fetchUserSolicitations(it.uid)
-        }
-    }
-
     GoogleMap(
         modifier = modifier.fillMaxSize(),
         cameraPositionState = camPosState,
         properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
         uiSettings = MapUiSettings(myLocationButtonEnabled = true)
     ) {
-
-        val sizeInPx = (48 * context.resources.displayMetrics.density).toInt() // 48dp transformado em pixels
+        val sizeInPx = (48 * context.resources.displayMetrics.density).toInt()
         val carIcon = remember(context) {
             try {
                 getResizedIcon(context, R.drawable.ic_car_marker, sizeInPx, sizeInPx)
@@ -162,7 +163,6 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
             )
             Marker(
                 state = MarkerState(position = position),
-                // Se carIcon for null, ele usa o marcador padrão do Google automaticamente
                 icon = carIcon,
                 onClick = {
                     selectedRideData = docId to ride
@@ -182,7 +182,7 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
             onDismissRequest = { showBottomSheet = false },
             sheetState = sheetState,
             containerColor = Color.White,
-            dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) } // Estilo do figma
+            dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
         ) {
             Column(
                 modifier = Modifier
@@ -190,9 +190,7 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                     .padding(bottom = 32.dp, start = 24.dp, end = 24.dp),
                 horizontalAlignment = Alignment.Start
             ) {
-                // Design do Modal similar ao Figma
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Ícone de Perfil Lilás circular
                     Surface(
                         shape = RoundedCornerShape(30.dp),
                         color = Color(0xFFF3E5F5),
@@ -233,18 +231,19 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                     color = Color.DarkGray
                 )
                 Text(
-                    text = "$dataHora, $occasionLabel", // Exibe "20/02 às 04:00, round trip" de forma limpa
+                    text = "$dataHora, $occasionLabel",
                     fontSize = 14.sp
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Botão "Mais informações" Azul claro
+                // Botão "Mais informações"
                 Button(
                     onClick = {
                         showBottomSheet = false
-                        // Navega para a MoreInfoPage passando os dados da carona
-                        navController.navigate(Route.RideDetails(ride = ride)) },
+                        // ✅ Usa o navController do MainNavHost — funciona corretamente
+                        navController.navigate(Route.RideDetails(rideId = ride.id))
+                    },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF90CAF9)),
                     shape = RoundedCornerShape(16.dp)
@@ -252,7 +251,7 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                     Text("... Mais informações", color = Color.White, fontWeight = FontWeight.Bold)
                 }
 
-                // Botão "Agendar carona" Roxo escuro
+                // Botão "Agendar carona"
                 Button(
                     enabled = !isBusy && !jaSolicitou,
                     onClick = {
@@ -264,7 +263,10 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (jaSolicitou) Color.LightGray else Color(0xFF4A148C)
                     ),

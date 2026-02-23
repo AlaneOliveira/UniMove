@@ -13,5 +13,11 @@ sealed class Route {
     @Serializable
     object CreateRide : Route()
     @Serializable
-    object RideDetails : Route()
+    data class RideDetails(val rideId: String) : Route()
+
+    @Serializable
+    data class RideSchedule(val rideId: String) : Route()
+
+    @Serializable
+    data class Confirmation(val seatId: String) : Route()
 }

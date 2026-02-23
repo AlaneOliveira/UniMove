@@ -2,7 +2,9 @@ package com.dm.unimove.model
 
 import android.util.Log
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -29,25 +31,36 @@ class MainViewModel : ViewModel() {
     private val _userSolicitadosIds = mutableStateOf<Set<String>>(emptySet())
     val userSolicitadosIds: State<Set<String>> = _userSolicitadosIds
 
+    // Assento selecionado pelo passageiro
+    private val _selectedSeat = mutableStateOf<String?>(null)
+    val selectedSeat: State<String?> = _selectedSeat
+
+    /**
+     * Salva o assento escolhido pelo passageiro no estado do ViewModel.
+     */
+    fun selectSeat(seatKey: String) {
+        _selectedSeat.value = seatKey
+        Log.d("ViewModel", "Assento selecionado: $seatKey")
+    }
+
     /**
      * Salva uma nova carona no Firestore.
-     * Implementa a lógica de salvar na coleção global e no histórico do motorista.
      */
     fun createNewRide(ride: Ride) {
         db.collection("CARONAS")
             .add(ride)
             .addOnSuccessListener { docRef ->
                 ride.driver_ref?.let { driverRef ->
-                    // Usamos o ID da carona como ID do documento na subcoleção
                     driverRef.collection("caronas como motorista")
                         .document(docRef.id)
-                        .set(mapOf("ride_ref" to docRef)) // Guarda a referência direta
+                        .set(mapOf("ride_ref" to docRef))
                 }
             }
     }
 
     /**
      * Busca todas as caronas com status AVAILABLE para mostrar no mapa.
+     * Preenche o campo 'id' de cada Ride com o ID do documento.
      */
     fun fetchAvailableRides() {
         db.collection("CARONAS")
@@ -56,7 +69,10 @@ class MainViewModel : ViewModel() {
                 if (error != null) return@addSnapshotListener
                 val list = value?.documents?.mapNotNull { doc ->
                     val ride = doc.toObject(Ride::class.java)
-                    if (ride != null) doc.id to ride else null
+                    if (ride != null) {
+                        ride.id = doc.id // <-- preenche o id
+                        doc.id to ride
+                    } else null
                 }
                 _availableRides.value = list ?: emptyList()
             }
@@ -64,7 +80,6 @@ class MainViewModel : ViewModel() {
 
     /**
      * Carrega os dados do perfil do usuário do Firestore.
-     * Chamado logo após o login ou na inicialização.
      */
     fun loadUserProfile(userId: String) {
         db.collection("USERS").document(userId)
@@ -73,23 +88,16 @@ class MainViewModel : ViewModel() {
                     Log.w("Firestore", "Erro ao carregar perfil", error)
                     return@addSnapshotListener
                 }
-
                 if (snapshot != null && snapshot.exists()) {
                     _user.value = snapshot.toObject(User::class.java)
                 }
             }
     }
 
-    /**
-     * Define o usuário atual após o login.
-     */
     fun setUser(loggedUser: User) {
         _user.value = loggedUser
     }
 
-    /**
-     * Cria o documento com o ID do Auth e coloca os campos name e email
-     */
     fun saveUserToFirestore(user: User, userId: String) {
         db.collection("USERS").document(userId)
             .set(user)
@@ -116,7 +124,6 @@ class MainViewModel : ViewModel() {
             return
         }
 
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         val passengerRef = db.collection("USERS").document(passengerId)
         val rideRef = db.collection("CARONAS").document(rideId)
 
@@ -130,23 +137,21 @@ class MainViewModel : ViewModel() {
 
         db.collection("SOLICITACOES")
             .add(solicitation)
-            .addOnSuccessListener {
-                Log.d("Firestore", "Solicitação enviada!")
-            }
-            .addOnFailureListener { e ->
-                Log.e("Firestore", "Erro ao enviar solicitação", e)
-            }
+            .addOnSuccessListener { Log.d("Firestore", "Solicitação enviada!") }
+            .addOnFailureListener { e -> Log.e("Firestore", "Erro ao enviar solicitação", e) }
     }
 
     fun registerNewUser(user: User, password: String, onComplete: (Boolean, String?) -> Unit) {
-        val auth = com.google.firebase.Firebase.auth
+        val auth = Firebase.auth
         auth.createUserWithEmailAndPassword(user.email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val userId = task.result?.user?.uid
                     if (userId != null) {
                         db.collection("USERS").document(userId)
-                            .set(user).addOnSuccessListener { onComplete(true, null) }.addOnFailureListener { e -> onComplete(false, e.message) }
+                            .set(user)
+                            .addOnSuccessListener { onComplete(true, null) }
+                            .addOnFailureListener { e -> onComplete(false, e.message) }
                     }
                 } else {
                     onComplete(false, task.exception?.message)
@@ -162,11 +167,10 @@ class MainViewModel : ViewModel() {
             .addSnapshotListener { snapshot, _ ->
                 val doc = snapshot?.documents?.firstOrNull()
                 if (doc != null) {
-                    _activeRide.value = doc.id to doc.toObject(Ride::class.java)!!
-                    fetchSolicitationsForRide(doc.id) // Se é motorista, busca quem pediu carona
-                } else {
-                    // 2. Se não achou como motorista, procura como PASSAGEIRO aceito
-                    // TODO: Implementar lógica de busca em SOLICITACOES com status 'ACCEPTED'
+                    val ride = doc.toObject(Ride::class.java)!!
+                    ride.id = doc.id
+                    _activeRide.value = doc.id to ride
+                    fetchSolicitationsForRide(doc.id)
                 }
             }
     }
@@ -191,7 +195,7 @@ class MainViewModel : ViewModel() {
         batch.update(rideRef, "passenger_refs", com.google.firebase.firestore.FieldValue.arrayUnion(passengerRef))
         batch.commit().addOnSuccessListener {
             updateUserBusyStatus(passengerId, true)
-            Log.d("Firestore", "Passageiro aceito e bloqueado para novas ações.")
+            Log.d("Firestore", "Passageiro aceito!")
         }
     }
 
@@ -199,7 +203,6 @@ class MainViewModel : ViewModel() {
         db.collection("SOLICITACOES").document(solicitationId)
             .update("status", "REJECTED")
             .addOnSuccessListener {
-                // Liberamos o passageiro para pedir outra carona se ele for rejeitado
                 updateUserBusyStatus(passengerId, false)
             }
     }
@@ -215,5 +218,11 @@ class MainViewModel : ViewModel() {
                 }?.toSet()
                 _userSolicitadosIds.value = ids ?: emptySet()
             }
+    }
+
+    var rides by mutableStateOf<List<Ride>>(emptyList())
+
+    fun getRideById(id: String): Ride? {
+        return _availableRides.value.find { (docId, _) -> docId == id }?.second
     }
 }
