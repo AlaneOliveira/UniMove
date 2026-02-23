@@ -4,6 +4,8 @@ import com.dm.unimove.R
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +48,7 @@ import com.dm.unimove.model.MainViewModel
 import com.dm.unimove.model.Ride
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -56,6 +59,12 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+
+fun getResizedIcon(context: android.content.Context, resourceId: Int, width: Int, height: Int): BitmapDescriptor {
+    val imageBitmap = BitmapFactory.decodeResource(context.resources, resourceId)
+    val resizedBitmap = Bitmap.createScaledBitmap(imageBitmap, width, height, false)
+    return BitmapDescriptorFactory.fromBitmap(resizedBitmap)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +78,15 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
     val RECIFE_FALLBACK = LatLng(-8.0631, -34.8711)
     var selectedRideData by remember { mutableStateOf<Pair<String, Ride>?>(null) }
     val user = FirebaseAuth.getInstance().currentUser
+    var driverName by remember { mutableStateOf("Carregando...") }
+
+    LaunchedEffect(selectedRideData) {
+        selectedRideData?.let { (_, ride) ->
+            ride.driver_ref?.get()?.addOnSuccessListener { snapshot ->
+                driverName = snapshot.getString("name") ?: "Motorista Desconhecido"
+            }
+        }
+    }
 
     LaunchedEffect(user) {
         user?.let {
@@ -124,11 +142,14 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
         properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
         uiSettings = MapUiSettings(myLocationButtonEnabled = true)
     ) {
-        // Definimos o ícone aqui dentro, onde é SEGURO
-        val carIcon = try {
-            BitmapDescriptorFactory.fromResource(R.drawable.ic_car_marker)
-        } catch (e: Exception) {
-            null // Se falhar, deixamos nulo para usar o padrão sem crashar
+
+        val sizeInPx = (48 * context.resources.displayMetrics.density).toInt() // 48dp transformado em pixels
+        val carIcon = remember(context) {
+            try {
+                getResizedIcon(context, R.drawable.ic_car_marker, sizeInPx, sizeInPx)
+            } catch (e: Exception) {
+                null
+            }
         }
 
         rides.forEach { (docId, ride) ->
@@ -177,20 +198,19 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
                         Icon(
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = null,
-                            modifier = Modifier.padding(8.dp),
                             tint = Color(0xFF9575CD)
                         )
                     }
 
                     Column(modifier = Modifier.padding(start = 16.dp)) {
                         Text(
-                            text = "Motorista: Disponível",
+                            text = "Motorista: $driverName",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
                         Text(
                             text = "Destino: ${ride.destination.name}",
-                            color = Color(0xFF6200EE), // Roxo do design
+                            color = Color(0xFF6200EE),
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 20.sp
                         )
@@ -199,18 +219,18 @@ fun MapPage(modifier: Modifier = Modifier, viewModel: MainViewModel) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Ponto de partida: ${ride.starting_point.name}",
-                    fontSize = 14.sp,
-                    color = Color.DarkGray
-                )
-
+                val occasionLabel = if (ride.occasion.name == "ROUND_TRIP") "ida e volta" else "somente ida"
                 val dataHora = ride.date_time?.toDate()?.let {
                     java.text.SimpleDateFormat("dd/MM 'às' HH:mm", java.util.Locale.getDefault()).format(it)
                 } ?: "Data não definida"
 
                 Text(
-                    text = "$dataHora, ${ride.occasion.name.lowercase().replace("_", " ")}",
+                    text = "Ponto de partida: ${ride.starting_point.name}",
+                    fontSize = 14.sp,
+                    color = Color.DarkGray
+                )
+                Text(
+                    text = "$dataHora, $occasionLabel", // Exibe "20/02 às 04:00, round trip" de forma limpa
                     fontSize = 14.sp
                 )
 
