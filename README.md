@@ -39,18 +39,6 @@ A aplicação busca reduzir custos de transporte, incentivar a mobilidade susten
 
 ---
 
-## 📸 Screenshots
-
-<p align="center">
-  <img src="screenshots/login.png" width="200"/>
-  <img src="screenshots/home.png" width="200"/>
-  <img src="screenshots/map.png" width="200"/>
-</p>
-
-> 📌 Crie uma pasta `screenshots/` no repositório para adicionar as imagens do app.
-
----
-
 ## 🛠️ Tecnologias Utilizadas
 
 ### 📱 Mobile
